@@ -1,0 +1,376 @@
+/* ============================================================
+   Quiz Time! — "large-print game night."
+   The identity of this page IS its legibility: Atkinson
+   Hyperlegible (a typeface designed by the Braille Institute
+   for low-vision readers) set huge on warm paper, with one
+   signature element — the flash-card question — and quiet,
+   disciplined everything else.
+   ============================================================ */
+
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  src: url("fonts/atkinson-regular.woff2") format("woff2");
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+@font-face {
+  font-family: "Atkinson Hyperlegible";
+  src: url("fonts/atkinson-bold.woff2") format("woff2");
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+
+:root {
+  /* Warm paper & ink, ~15:1 contrast */
+  --paper: #fffbf2;
+  --ink: #211d17;
+  --card: #ffffff;
+  --shadow: #ead9b8;          /* flash-card offset shadow */
+  --plum: #6a2c70;            /* primary action — 9.4:1 with white */
+  --on-plum: #ffffff;
+  --correct-bg: #0d652d;
+  --wrong-bg: #b3261e;
+  --on-strong: #ffffff;
+  --good-text: #0d652d;
+  --bad-text: #b3261e;
+  --focus: #e37400;
+  --muted: #554e43;
+}
+
+html[data-theme="dark"] {
+  --paper: #161310;
+  --ink: #f5efe4;
+  --card: #221e18;
+  --shadow: #0a0806;
+  --plum: #dda9e5;            /* 8.9:1 with the dark text below */
+  --on-plum: #2a1030;
+  --correct-bg: #1b5e20;
+  --wrong-bg: #b3261e;
+  --on-strong: #ffffff;
+  --good-text: #86e29f;
+  --bad-text: #ffb4ab;
+  --focus: #ffb300;
+  --muted: #c9c0b0;
+}
+
+* { box-sizing: border-box; }
+
+/* Base size is deliberately large; A−/A+ buttons scale this further. */
+html { font-size: 22px; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: "Atkinson Hyperlegible", Verdana, "Segoe UI", Arial, sans-serif;
+  line-height: 1.55;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Very visible focus ring everywhere, for keyboard users */
+:focus-visible {
+  outline: 0.25rem solid var(--focus);
+  outline-offset: 0.2rem;
+  border-radius: 0.5rem;
+}
+
+/* ---------- Toolbar ---------- */
+
+.toolbar {
+  border-bottom: 3px solid var(--ink);
+  background: var(--card);
+}
+
+.toolbar-inner {
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 0.6rem 1rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand {
+  font-weight: 700;
+  font-size: 1.1rem;
+  white-space: nowrap;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.ctrl-btn {
+  font: inherit;
+  font-weight: 700;
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: var(--card);
+  border: 3px solid var(--ink);
+  border-radius: 0.7rem;
+  padding: 0.45rem 0.8rem;
+  min-height: 3rem;
+  cursor: pointer;
+}
+
+.ctrl-btn:hover { background: var(--paper); }
+
+/* ---------- Layout ---------- */
+
+main {
+  flex: 1;
+  width: 100%;
+  max-width: 46rem;
+  margin: 0 auto;
+  padding: 1.2rem 1rem 2rem;
+}
+
+.screen h1 {
+  font-size: 2rem;
+  line-height: 1.2;
+  margin: 0.8rem 0 0.4rem;
+}
+
+.lead {
+  font-size: 1.2rem;
+  margin: 0.4rem 0 1.4rem;
+}
+
+.hint {
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin-top: 1.6rem;
+}
+
+/* ---------- Big buttons ---------- */
+
+.big-btn {
+  display: block;
+  width: 100%;
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-align: left;
+  color: var(--ink);
+  background: var(--card);
+  border: 3px solid var(--ink);
+  border-radius: 1.1rem;
+  padding: 1.1rem 1.2rem;
+  min-height: 4.4rem;
+  margin: 0.8rem 0;
+  cursor: pointer;
+}
+
+.big-btn:hover { background: var(--paper); }
+
+.menu { margin-top: 1.2rem; }
+
+.menu-btn {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.menu-emoji {
+  font-size: 2.1rem;
+  line-height: 1;
+  flex: none;
+}
+
+.menu-title { display: block; }
+
+.menu-sub {
+  display: block;
+  font-weight: 400;
+  font-size: 0.95rem;
+  color: var(--muted);
+  margin-top: 0.15rem;
+}
+
+/* ---------- Quiz screen ---------- */
+
+.quiz-top {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 0.5rem;
+}
+
+.progress {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* Chunky segmented progress bar — readable even at low acuity.
+   Purely visual; the text above carries the same information. */
+.bar {
+  display: flex;
+  gap: 0.35rem;
+  margin: 0.2rem 0 1rem;
+}
+
+.bar span {
+  flex: 1;
+  height: 0.8rem;
+  border: 2px solid var(--ink);
+  border-radius: 999px;
+  background: transparent;
+}
+
+.bar span.done {
+  background: var(--plum);
+  border-color: var(--plum);
+}
+
+/* The signature: the question as an oversized flash card */
+.question-card {
+  background: var(--card);
+  border: 3px solid var(--ink);
+  border-radius: 1.25rem;
+  padding: 1.2rem 1.4rem;
+  margin: 0.4rem 0 1.2rem;
+  box-shadow: 0.45rem 0.45rem 0 var(--shadow);
+}
+
+.question {
+  font-size: 1.6rem;
+  line-height: 1.35;
+  margin: 0;
+}
+
+.options .option-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  width: 100%;
+  font: inherit;
+  font-size: 1.25rem;
+  text-align: left;
+  color: var(--ink);
+  background: var(--card);
+  border: 3px solid var(--ink);
+  border-radius: 1.1rem;
+  padding: 0.85rem 1.1rem;
+  min-height: 4.2rem;
+  margin: 0.7rem 0;
+  cursor: pointer;
+}
+
+.options .option-btn:hover:not(:disabled) { background: var(--paper); }
+
+/* Circled number — matches the "press 1–4" keyboard hint */
+.option-badge {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.3rem;
+  height: 2.3rem;
+  border: 3px solid currentColor;
+  border-radius: 50%;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+/* Answer states: color PLUS symbol PLUS words, never color alone */
+.option-btn.is-correct {
+  background: var(--correct-bg) !important;
+  border-color: var(--correct-bg);
+  color: var(--on-strong);
+  font-weight: 700;
+}
+
+.option-btn.is-wrong {
+  background: var(--wrong-bg) !important;
+  border-color: var(--wrong-bg);
+  color: var(--on-strong);
+  text-decoration: line-through;
+}
+
+.option-btn:disabled { cursor: default; }
+
+.option-btn.is-faded { opacity: 0.55; }
+
+.feedback {
+  font-size: 1.35rem;
+  font-weight: 700;
+  min-height: 2.2rem;
+  margin: 1rem 0 0.4rem;
+}
+
+.feedback.good { color: var(--good-text); }
+.feedback.bad  { color: var(--bad-text); }
+
+.next-btn {
+  display: block;
+  text-align: center;
+  background: var(--plum);
+  border-color: var(--plum);
+  color: var(--on-plum);
+}
+
+.next-btn:hover { background: var(--plum); opacity: 0.92; }
+
+.quiet-btn {
+  font: inherit;
+  font-size: 0.95rem;
+  color: var(--ink);
+  background: none;
+  border: none;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0.6rem 0.2rem;
+  min-height: 3rem;
+  display: block;
+  margin: 0.4rem auto 0;
+}
+
+/* ---------- Results ---------- */
+
+.result-emoji {
+  font-size: 4rem;
+  text-align: center;
+  margin: 1rem 0 0;
+  line-height: 1.2;
+}
+
+.result-title {
+  font-size: 2rem;
+  text-align: center;
+  margin: 0.5rem 0;
+}
+
+.result-score {
+  font-size: 1.4rem;
+  text-align: center;
+  font-weight: 700;
+  margin: 0.4rem 0 1.4rem;
+}
+
+/* ---------- Footer ---------- */
+
+.footer {
+  border-top: 3px solid var(--ink);
+  background: var(--card);
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.footer p { margin: 0.7rem 0; }
+
+/* Respect users who prefer less motion — we use none anyway,
+   but make sure nothing ever animates for them. */
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
