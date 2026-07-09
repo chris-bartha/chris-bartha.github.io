@@ -1,9 +1,16 @@
 # 🧠 Quiz Time!
 
-A friendly, easy-to-read quiz game with **301 questions** (150 History, 151 Geography).
+A friendly, easy-to-read quiz game with **1,200 questions**:
+400 History, 400 Geography, and 400 **Történelem magyarul** — a section
+entirely in Hungarian (text and speech), mixing Hungarian history with
+great world events.
+
 Built for low-vision readers: big text with A−/A+ size controls, high contrast,
 dark mode, huge buttons, keyboard shortcuts (press 1–4 to answer), and an
-optional voice that reads questions out loud.
+optional voice that reads questions out loud (Hungarian questions get a
+Hungarian voice). A wrong answer earns a **second chance** — the voice says
+"Not correct, try again" (or "Nem helyes, próbáld újra") and the wrong choice
+is crossed out; only after a second miss is the answer revealed.
 
 Plain HTML/CSS/JavaScript — no build step, no dependencies.
 
@@ -12,7 +19,8 @@ Plain HTML/CSS/JavaScript — no build step, no dependencies.
 - `index.html` — the page
 - `style.css` — styling (light + dark themes)
 - `app.js` — quiz logic and accessibility settings
-- `questions.js` — the question bank (add more questions here!)
+- `questions.js` — the English question bank
+- `questions-hu.js` — the Hungarian question bank
 
 ## Put it on GitHub Pages
 

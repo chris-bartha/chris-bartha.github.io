@@ -30,9 +30,78 @@
     index: 0,        // which question we are on
     score: 0,
     answered: false,
+    attempts: 0,     // wrong tries on the current question (max 2)
     fontStep: 1,     // index into FONT_STEPS (default 115%)
     voiceOn: false
   };
+
+  // ---------- Languages ----------
+  // The Hungarian section runs entirely in Hungarian: text and speech.
+  var STRINGS = {
+    en: {
+      lang: "en-US",
+      progress: function (i, n, s) { return "Question " + i + " of " + n + "  •  Score: " + s; },
+      option: function (i) { return "Option " + i; },
+      correct: "✓ Correct! Well done.",
+      correctSpoken: "Correct! Well done.",
+      correct2: "✓ Correct — you got it on the second try!",
+      correct2Spoken: "Correct! You got it on the second try.",
+      tryAgain: "✗ Not correct — try again!",
+      tryAgainSpoken: "Not correct, try again.",
+      reveal: function (a) { return "✗ Not quite. The answer is: " + a; },
+      revealSpoken: function (a) { return "Not quite. The answer is: " + a; },
+      next: "Next question ➜",
+      seeResult: "See my result ➜",
+      read: "🔊 Read this question",
+      quit: "Stop and go back to the menu",
+      kbHint: "Tip: you can press 1, 2, 3 or 4 on your keyboard to answer.",
+      again: "🔁 Play again",
+      home: "🏠 Back to the menu",
+      score: function (s, n) { return "You got " + s + " out of " + n + " right."; },
+      titles: ["Perfect score!", "Excellent!", "Well done!", "Good effort!", "Nice try — play again!"]
+    },
+    hu: {
+      lang: "hu-HU",
+      progress: function (i, n, s) { return i + ". kérdés a " + n + "-ből  •  Pontszám: " + s; },
+      option: function (i) { return i + ". válasz"; },
+      correct: "✓ Helyes! Ügyes vagy!",
+      correctSpoken: "Helyes! Ügyes vagy!",
+      correct2: "✓ Helyes — másodikra sikerült!",
+      correct2Spoken: "Helyes! Másodikra sikerült!",
+      tryAgain: "✗ Nem helyes. Próbáld újra!",
+      tryAgainSpoken: "Nem helyes, próbáld újra.",
+      reveal: function (a) { return "✗ Sajnos nem. A helyes válasz: " + a; },
+      revealSpoken: function (a) { return "Sajnos nem. A helyes válasz: " + a; },
+      next: "Következő kérdés ➜",
+      seeResult: "Mutasd az eredményt ➜",
+      read: "🔊 Olvasd fel a kérdést",
+      quit: "Megállok, vissza a menübe",
+      kbHint: "Tipp: a billentyűzeten az 1, 2, 3 vagy 4 gombbal is válaszolhatsz.",
+      again: "🔁 Játszom még egyszer",
+      home: "🏠 Vissza a menübe",
+      score: function (s, n) { return n + " kérdésből " + s + " helyes válaszod volt."; },
+      titles: ["Hibátlan! Csodálatos!", "Kiváló!", "Szép munka!", "Jó próbálkozás!", "Ne add fel — próbáld újra!"]
+    }
+  };
+
+  function locale() {
+    return state.category === "hungarian" ? "hu" : "en";
+  }
+  function L() {
+    return STRINGS[locale()];
+  }
+
+  function applyLocale() {
+    var s = L();
+    readBtn.textContent = s.read;
+    quitBtn.textContent = s.quit;
+    document.getElementById("kb-hint").innerHTML = s.kbHint.replace("1, 2, 3", "<strong>1, 2, 3</strong>");
+    document.getElementById("again-btn").textContent = s.again;
+    document.getElementById("home-btn").textContent = s.home;
+    var lang = locale() === "hu" ? "hu" : "en";
+    screens.quiz.setAttribute("lang", lang);
+    screens.results.setAttribute("lang", lang);
+  }
 
   // ---------- Small helpers ----------
   function shuffle(arr) {
@@ -98,15 +167,24 @@
     window.speechSynthesis.cancel();
     var u = new SpeechSynthesisUtterance(text);
     u.rate = 0.9; // a touch slower, easier to follow
+    u.lang = L().lang;
+    // Prefer a voice that matches the language (e.g. Hungarian)
+    var voices = window.speechSynthesis.getVoices();
+    for (var i = 0; i < voices.length; i++) {
+      if (voices[i].lang && voices[i].lang.indexOf(locale()) === 0) {
+        u.voice = voices[i];
+        break;
+      }
+    }
     window.speechSynthesis.speak(u);
   }
 
   function questionSpeechText() {
     var q = state.round[state.index];
     var parts = [q.q];
-    var btns = optionsEl.querySelectorAll(".option-btn");
+    var btns = optionsEl.querySelectorAll(".option-btn:not(:disabled)");
     for (var i = 0; i < btns.length; i++) {
-      parts.push("Option " + (i + 1) + ": " + btns[i].dataset.text);
+      parts.push(L().option(btns[i].dataset.num) + ": " + btns[i].dataset.text);
     }
     return parts.join(". ");
   }
@@ -139,9 +217,16 @@
   }
 
   // ---------- Quiz flow ----------
+  var ALL_QUESTIONS = QUESTIONS.concat(
+    typeof QUESTIONS_HU !== "undefined" ? QUESTIONS_HU : []
+  );
+
   function poolFor(category) {
-    if (category === "mix") return QUESTIONS;
-    return QUESTIONS.filter(function (q) { return q.cat === category; });
+    if (category === "mix") {
+      // English history + geography only; Hungarian stays its own world
+      return ALL_QUESTIONS.filter(function (q) { return q.cat !== "hungarian"; });
+    }
+    return ALL_QUESTIONS.filter(function (q) { return q.cat === category; });
   }
 
   function startRound(category) {
@@ -149,6 +234,7 @@
     state.round = shuffle(poolFor(category)).slice(0, ROUND_LENGTH);
     state.index = 0;
     state.score = 0;
+    applyLocale();
     barEl.innerHTML = "";
     for (var s = 0; s < state.round.length; s++) {
       barEl.appendChild(document.createElement("span"));
@@ -168,11 +254,11 @@
     if (speechOK) window.speechSynthesis.cancel();
     var q = state.round[state.index];
     state.answered = false;
+    state.attempts = 0;
     updateBar(state.index);
 
     progressEl.textContent =
-      "Question " + (state.index + 1) + " of " + state.round.length +
-      "  •  Score: " + state.score;
+      L().progress(state.index + 1, state.round.length, state.score);
 
     questionEl.textContent = q.q;
     feedbackEl.textContent = "";
@@ -186,6 +272,7 @@
       btn.type = "button";
       btn.className = "option-btn";
       btn.dataset.text = text;
+      btn.dataset.num = String(i + 1);
 
       var badge = document.createElement("span");
       badge.className = "option-badge";
@@ -197,7 +284,7 @@
       label.textContent = text;
       btn.appendChild(label);
 
-      btn.setAttribute("aria-label", "Option " + (i + 1) + ": " + text);
+      btn.setAttribute("aria-label", L().option(i + 1) + ": " + text);
       btn.addEventListener("click", function () { answer(btn, text === q.a); });
       optionsEl.appendChild(btn);
     });
@@ -206,50 +293,69 @@
     if (state.voiceOn) speak(questionSpeechText());
   }
 
-  function answer(chosenBtn, isRight) {
-    if (state.answered) return;
-    state.answered = true;
-
+  function finishQuestion(chosenWrongBtn) {
+    // Reveal the correct answer, lock every button
     var q = state.round[state.index];
     var btns = optionsEl.querySelectorAll(".option-btn");
     for (var i = 0; i < btns.length; i++) {
       var b = btns[i];
-      b.disabled = true;
       var badge = b.querySelector(".option-badge");
       if (b.dataset.text === q.a) {
         b.classList.add("is-correct");
+        b.classList.remove("is-faded");
         badge.textContent = "✓";
-      } else if (b === chosenBtn) {
+      } else if (b === chosenWrongBtn) {
         b.classList.add("is-wrong");
         badge.textContent = "✗";
-      } else {
+      } else if (!b.classList.contains("is-wrong")) {
         b.classList.add("is-faded");
       }
+      b.disabled = true;
     }
     updateBar(state.index + 1);
-
-    var spoken;
-    if (isRight) {
-      state.score++;
-      feedbackEl.textContent = "✓ Correct! Well done.";
-      feedbackEl.className = "feedback good";
-      spoken = "Correct! Well done.";
-    } else {
-      feedbackEl.textContent = "✗ Not quite. The answer is: " + q.a;
-      feedbackEl.className = "feedback bad";
-      spoken = "Not quite. The answer is: " + q.a;
-    }
+    state.answered = true;
 
     progressEl.textContent =
-      "Question " + (state.index + 1) + " of " + state.round.length +
-      "  •  Score: " + state.score;
+      L().progress(state.index + 1, state.round.length, state.score);
 
     var last = state.index === state.round.length - 1;
-    nextBtn.textContent = last ? "See my result ➜" : "Next question ➜";
+    nextBtn.textContent = last ? L().seeResult : L().next;
     nextBtn.hidden = false;
     nextBtn.focus();
+  }
 
-    if (state.voiceOn) speak(spoken);
+  function answer(chosenBtn, isRight) {
+    if (state.answered || chosenBtn.disabled) return;
+    var s = L();
+
+    if (isRight) {
+      var secondTry = state.attempts > 0;
+      state.score++;
+      feedbackEl.textContent = secondTry ? s.correct2 : s.correct;
+      feedbackEl.className = "feedback good";
+      finishQuestion(null);
+      if (state.voiceOn) speak(secondTry ? s.correct2Spoken : s.correctSpoken);
+      return;
+    }
+
+    state.attempts++;
+    if (state.attempts === 1) {
+      // Second chance: cross out the wrong pick and let her try again
+      chosenBtn.disabled = true;
+      chosenBtn.classList.add("is-wrong");
+      chosenBtn.querySelector(".option-badge").textContent = "✗";
+      feedbackEl.textContent = s.tryAgain;
+      feedbackEl.className = "feedback bad";
+      speak(s.tryAgainSpoken);
+      return;
+    }
+
+    // Second miss: show the answer and move on
+    var q = state.round[state.index];
+    feedbackEl.textContent = s.reveal(q.a);
+    feedbackEl.className = "feedback bad";
+    finishQuestion(chosenBtn);
+    if (state.voiceOn) speak(s.revealSpoken(q.a));
   }
 
   nextBtn.addEventListener("click", function () {
@@ -269,20 +375,21 @@
   function showResults() {
     var total = state.round.length;
     var s = state.score;
+    var t = L();
     var emoji, title;
-    if (s === total)      { emoji = "🌟🌟🌟"; title = "Perfect score!"; }
-    else if (s >= total * 0.8) { emoji = "🎉";  title = "Excellent!"; }
-    else if (s >= total * 0.6) { emoji = "😊";  title = "Well done!"; }
-    else if (s >= total * 0.4) { emoji = "👍";  title = "Good effort!"; }
-    else                  { emoji = "💪";  title = "Nice try — play again!"; }
+    if (s === total)           { emoji = "🌟🌟🌟"; title = t.titles[0]; }
+    else if (s >= total * 0.8) { emoji = "🎉";  title = t.titles[1]; }
+    else if (s >= total * 0.6) { emoji = "😊";  title = t.titles[2]; }
+    else if (s >= total * 0.4) { emoji = "👍";  title = t.titles[3]; }
+    else                       { emoji = "💪";  title = t.titles[4]; }
 
     resultEmoji.textContent = emoji;
     resultTitle.textContent = title;
-    resultScore.textContent = "You got " + s + " out of " + total + " right.";
+    resultScore.textContent = t.score(s, total);
     show("results");
     resultTitle.focus();
     if (state.voiceOn) {
-      speak(title + " You got " + s + " out of " + total + " right.");
+      speak(title + " " + t.score(s, total));
     }
   }
 

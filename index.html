@@ -53,6 +53,13 @@
             <span class="menu-sub">A little history, a little geography</span>
           </span>
         </button>
+        <button class="big-btn menu-btn" type="button" data-category="hungarian" lang="hu">
+          <span class="menu-emoji" aria-hidden="true">🇭🇺</span>
+          <span>
+            <span class="menu-title">Történelem magyarul</span>
+            <span class="menu-sub">Magyar és világtörténelem — magyar nyelven</span>
+          </span>
+        </button>
       </div>
       <p class="hint">Tip: use the <strong>A−</strong> and <strong>A+</strong> buttons at the top to change the text size.
       Turn on <strong>🔊 Voice</strong> to have questions read out loud.</p>
@@ -80,7 +87,7 @@
         <button id="quit-btn" class="quiet-btn" type="button">Stop and go back to the menu</button>
       </div>
 
-      <p class="hint keyboard-hint">Tip: you can press <strong>1, 2, 3 or 4</strong> on your keyboard to answer.</p>
+      <p class="hint keyboard-hint" id="kb-hint">Tip: you can press <strong>1, 2, 3 or 4</strong> on your keyboard to answer.</p>
     </section>
 
     <!-- RESULTS SCREEN -->
@@ -101,6 +108,7 @@
   </footer>
 
   <script src="questions.js"></script>
+  <script src="questions-hu.js"></script>
   <script src="app.js"></script>
 </body>
 </html>
