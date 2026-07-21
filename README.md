@@ -37,6 +37,8 @@ Questions are stored in `quiz_questions`; the original local JavaScript question
 - `supabase/migrations/20260721214305_initial_quiz_schema.sql`
 - `supabase/seed.sql`
 
+Each question also keeps global `times_shown`, `times_answered`, and `times_correct` counters. Round selection uses gentle weighted randomness: questions with fewer views have a better chance of appearing, but no active question is excluded. `quiz_question_stats_dashboard` provides an admin-friendly view of those counters and per-question accuracy.
+
 Completed scores are deliberately separated by quiz:
 
 - `history_quiz_results`

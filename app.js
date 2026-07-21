@@ -131,6 +131,24 @@
     return copy;
   }
 
+  /* Weighted sampling without replacement. Every question remains eligible,
+     while a question with fewer global views receives a larger lottery weight. */
+  function weightedSample(items, count) {
+    return items.map(function (question) {
+      var views = Math.max(question.timesShown || 0, question.timesAnswered || 0);
+      var weight = 1 / Math.sqrt(1 + views);
+      var random = Math.max(Math.random(), Number.MIN_VALUE);
+      return {
+        question: question,
+        lotteryKey: -Math.log(random) / weight
+      };
+    }).sort(function (left, right) {
+      return left.lotteryKey - right.lotteryKey;
+    }).slice(0, count).map(function (entry) {
+      return entry.question;
+    });
+  }
+
   function show(name) {
     Object.keys(screens).forEach(function (key) {
       screens[key].hidden = key !== name;
@@ -263,9 +281,19 @@
     for (var grade = 1; grade <= 5; grade++) {
       var gradePool = pool.filter(function (question) { return question.grade === grade; });
       if (gradePool.length < 2) throw new Error("The Grade " + grade + " question set is incomplete.");
-      round = round.concat(shuffle(gradePool).slice(0, 2));
+      round = round.concat(weightedSample(gradePool, 2));
     }
     return round;
+  }
+
+  function rememberRoundViews(round) {
+    round.forEach(function (question) {
+      question.timesShown = (question.timesShown || 0) + 1;
+    });
+
+    window.QuizBackend.recordQuestionViews(round).catch(function (error) {
+      console.error("Question variety tracking failed:", error);
+    });
   }
 
   async function startRound(category) {
@@ -281,7 +309,7 @@
       state.category = category;
       state.round = category === "fifth_grader"
         ? buildFifthGradeRound(pool)
-        : shuffle(pool).slice(0, ROUND_LENGTH);
+        : weightedSample(pool, ROUND_LENGTH);
       state.index = 0;
       state.score = 0;
       state.firstTryCorrect = 0;
@@ -289,6 +317,7 @@
       state.answers = [];
       state.startedAt = new Date().toISOString();
       state.lifelines = { peek: false, copy: false, save: false, saveSucceeded: false };
+      rememberRoundViews(state.round);
 
       applyLocale();
       barEl.innerHTML = "";
@@ -555,6 +584,10 @@
   quitBtn.addEventListener("click", function () {
     if (speechOK) window.speechSynthesis.cancel();
     show("home");
+    var currentMenuButton = document.querySelector(
+      '.menu-btn[data-category="' + state.category + '"]'
+    );
+    if (currentMenuButton) currentMenuButton.focus();
   });
 
   function resultPayload() {
@@ -609,6 +642,10 @@
 
   document.getElementById("home-btn").addEventListener("click", function () {
     show("home");
+    var currentMenuButton = document.querySelector(
+      '.menu-btn[data-category="' + state.category + '"]'
+    );
+    if (currentMenuButton) currentMenuButton.focus();
   });
 
   for (var menuIndex = 0; menuIndex < menuBtns.length; menuIndex++) {

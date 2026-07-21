@@ -106,7 +106,10 @@
       a: row.correct_answer,
       w: row.wrong_answers,
       grade: row.grade_level,
-      subject: row.subject
+      subject: row.subject,
+      timesShown: Number(row.times_shown) || 0,
+      timesAnswered: Number(row.times_answered) || 0,
+      timesCorrect: Number(row.times_correct) || 0
     };
   }
 
@@ -116,7 +119,7 @@
 
     var result = await client
       .from("quiz_questions")
-      .select("id, category_id, prompt, correct_answer, wrong_answers, grade_level, subject")
+      .select("id, category_id, prompt, correct_answer, wrong_answers, grade_level, subject, times_shown, times_answered, times_correct")
       .in("category_id", sourceCategories(category))
       .eq("is_active", true)
       .order("display_order", { ascending: true });
@@ -127,6 +130,19 @@
 
     questionCache[category] = result.data.map(mapQuestion);
     return questionCache[category].slice();
+  }
+
+  async function recordQuestionViews(questions) {
+    if (!client || !userId || !questions || !questions.length) return;
+
+    var questionIds = questions.map(function (question) { return question.id; });
+    var result = await client.rpc("record_question_views", {
+      selected_question_ids: questionIds
+    });
+
+    if (result.error) {
+      throw new Error(readableError(result.error, "Could not update question variety."));
+    }
   }
 
   async function recordResult(category, result) {
@@ -153,6 +169,7 @@
   window.QuizBackend = {
     initialize: initialize,
     loadQuestions: loadQuestions,
+    recordQuestionViews: recordQuestionViews,
     recordResult: recordResult
   };
 })();
