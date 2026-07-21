@@ -50,7 +50,13 @@ Completed scores are deliberately separated by quiz:
 
 `quiz_metrics` contains each player’s quiz count, average percentage, best percentage, cumulative totals, latest score, and latest play time for each category. `quiz_metrics_dashboard` joins those metrics with the anonymous device ID and browser timezone for easy reading in the Supabase SQL editor.
 
-The browser signs in with Supabase Anonymous Auth. Row Level Security allows players to read active questions, manage only their own device profile, and insert only their own score rows. Metrics are not exposed to browser users.
+The browser signs in with Supabase Anonymous Auth. Row Level Security allows players to read active questions, manage only their own device profile, and insert only their own score rows. Private per-player metrics and full result records are not exposed to browser users.
+
+## Metrics dashboard
+
+Visit `/metrics` for the dark, owner-facing activity dashboard. It shows all-time and daily totals, category performance, score distribution, streaks, timing, second-chance points, a 30-day activity graph, and the latest sessions. The dashboard keeps a small local snapshot so it can paint immediately on repeat visits, then refreshes once in the background.
+
+The dashboard is intentionally public. Its single aggregate request reads from `quiz_public_attempts`, a sanitized projection that contains no user IDs, device IDs, answer details, or question text. The original per-category result tables remain blocked from the public API.
 
 ## Files
 
@@ -59,6 +65,7 @@ The browser signs in with Supabase Anonymous Auth. Row Level Security allows pla
 - `app.js` — quiz flow, second chances, voice, and game-show lifelines
 - `supabase-client.js` — anonymous identity, question loading, and score recording
 - `config.js` — project URL and browser-safe Supabase publishable key
+- `metrics/` — dark metrics dashboard at `/metrics`
 - `supabase/` — CLI config, database migration, and question seed
 
 ## Local development
