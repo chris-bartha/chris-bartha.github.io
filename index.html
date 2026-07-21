@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quiz Time!</title>
-  <meta name="description" content="A friendly, easy-to-read quiz game with history and geography questions.">
+  <meta name="description" content="A friendly, easy-to-read quiz game with history, geography, Hungarian history, and a fifth-grade challenge.">
   <meta name="theme-color" content="#fffbf2">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>">
   <link rel="preload" href="fonts/atkinson-regular.woff2" as="font" type="font/woff2" crossorigin>
@@ -27,8 +27,23 @@
 
   <main id="main">
 
+    <!-- LOADING SCREEN -->
+    <section id="screen-loading" class="screen loading-screen" aria-live="polite">
+      <p class="loading-emoji" aria-hidden="true">🧠</p>
+      <h1>Getting your quiz ready…</h1>
+      <p class="lead">Loading the question library.</p>
+    </section>
+
+    <!-- CONNECTION ERROR SCREEN -->
+    <section id="screen-error" class="screen" hidden>
+      <p class="result-emoji" aria-hidden="true">📚</p>
+      <h1>We couldn’t open the question library.</h1>
+      <p id="error-message" class="lead" role="alert"></p>
+      <button id="retry-btn" class="big-btn next-btn" type="button">Try again</button>
+    </section>
+
     <!-- HOME SCREEN -->
-    <section id="screen-home" class="screen">
+    <section id="screen-home" class="screen" hidden>
       <h1>Welcome to Quiz Time!</h1>
       <p class="lead">Pick a quiz to play. Each round has 10 questions.</p>
       <div class="menu">
@@ -60,6 +75,13 @@
             <span class="menu-sub">Magyar és világtörténelem — magyar nyelven</span>
           </span>
         </button>
+        <button class="big-btn menu-btn fifth-menu-btn" type="button" data-category="fifth_grader">
+          <span class="menu-emoji" aria-hidden="true">🎓</span>
+          <span>
+            <span class="menu-title">Are You Smarter Than a Fifth Grader?</span>
+            <span class="menu-sub">Climb from Grade 1 to Grade 5 with Peek, Copy, and Save</span>
+          </span>
+        </button>
       </div>
       <p class="hint">Tip: use the <strong>A−</strong> and <strong>A+</strong> buttons at the top to change the text size.
       Turn on <strong>🔊 Voice</strong> to have questions read out loud.</p>
@@ -73,6 +95,19 @@
       </div>
 
       <div id="progress-bar" class="bar" aria-hidden="true"></div>
+
+      <p id="question-meta" class="question-meta" hidden></p>
+
+      <aside id="fifth-help" class="help-panel" aria-labelledby="help-title" hidden>
+        <h2 id="help-title">Classmate Help</h2>
+        <p class="help-explainer">Use <strong>Peek</strong> to see your classmate’s answer or <strong>Copy</strong> to use it. <strong>Save</strong> steps in automatically after a wrong answer.</p>
+        <div class="help-buttons">
+          <button id="peek-btn" class="help-btn" type="button">👀 Peek</button>
+          <button id="copy-btn" class="help-btn" type="button">📝 Copy</button>
+          <button id="save-indicator" class="help-btn" type="button" disabled>🛟 Save: Ready</button>
+        </div>
+        <p id="help-status" class="help-status" role="status" aria-live="polite"></p>
+      </aside>
 
       <div class="question-card">
         <h2 id="question-text" class="question" tabindex="-1"></h2>
@@ -107,8 +142,9 @@
     <p>Made with ❤️ for Mom</p>
   </footer>
 
-  <script src="questions.js"></script>
-  <script src="questions-hu.js"></script>
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.106.2/dist/umd/supabase.js"></script>
+  <script src="supabase-client.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

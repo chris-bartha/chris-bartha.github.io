@@ -1,52 +1,77 @@
 # 🧠 Quiz Time!
 
-A friendly, easy-to-read quiz game with **1,200 questions**:
-400 History, 400 Geography, and 400 **Történelem magyarul** — a section
-entirely in Hungarian (text and speech), mixing Hungarian history with
-great world events.
+An accessible, large-print quiz game made for Mom. The app now loads its question library from Supabase and silently keeps the same anonymous player identity in the browser—there is no name or login form.
 
-Built for low-vision readers: big text with A−/A+ size controls, high contrast,
-dark mode, huge buttons, keyboard shortcuts (press 1–4 to answer), and an
-optional voice that reads questions out loud (Hungarian questions get a
-Hungarian voice). A wrong answer earns a **second chance** — the voice says
-"Not correct, try again" (or "Nem helyes, próbáld újra") and the wrong choice
-is crossed out; only after a second miss is the answer revealed.
+## Quiz library
 
-Plain HTML/CSS/JavaScript — no build step, no dependencies.
+The Supabase database contains **1,350 unique questions**:
+
+- 430 History questions
+- 415 Geography questions
+- 430 Hungarian-language history questions
+- 75 “Are You Smarter Than a Fifth Grader?” questions, with 15 questions at each grade level
+
+The fifth-grade challenge asks two questions from each grade, in order from Grade 1 through Grade 5. It simulates the show’s three classmate helps:
+
+- **Peek** reveals the simulated classmate’s answer while leaving the player free to choose.
+- **Copy** commits to the simulated classmate’s answer.
+- **Save** is automatic after a wrong answer and succeeds only when the simulated classmate is right.
+
+History, Geography, Mixed, and Hungarian quizzes keep the friendly second-chance rule from the original app.
+
+## Accessibility
+
+- Atkinson Hyperlegible with full Hungarian character support
+- Large type and large click targets
+- A−/A+ text scaling
+- Light and dark themes
+- Optional English or Hungarian speech
+- Keyboard shortcuts 1–4 for answer choices
+- High contrast, strong focus rings, and answer states that do not rely on color alone
+- No required typing or recurring sign-in
+
+## Supabase data
+
+Questions are stored in `quiz_questions`; the original local JavaScript question banks are no longer loaded by the site. The checked-in migration and seed make the database reproducible:
+
+- `supabase/migrations/20260721214305_initial_quiz_schema.sql`
+- `supabase/seed.sql`
+
+Completed scores are deliberately separated by quiz:
+
+- `history_quiz_results`
+- `geography_quiz_results`
+- `mixed_quiz_results`
+- `hungarian_quiz_results`
+- `fifth_grader_quiz_results`
+
+`quiz_metrics` contains each player’s quiz count, average percentage, best percentage, cumulative totals, latest score, and latest play time for each category. `quiz_metrics_dashboard` joins those metrics with the anonymous device ID and browser timezone for easy reading in the Supabase SQL editor.
+
+The browser signs in with Supabase Anonymous Auth. Row Level Security allows players to read active questions, manage only their own device profile, and insert only their own score rows. Metrics are not exposed to browser users.
 
 ## Files
 
-- `index.html` — the page
-- `style.css` — styling (light + dark themes)
-- `app.js` — quiz logic and accessibility settings
-- `questions.js` — the English question bank
-- `questions-hu.js` — the Hungarian question bank
+- `index.html` — accessible page structure
+- `style.css` — large-print light/dark design
+- `app.js` — quiz flow, second chances, voice, and game-show lifelines
+- `supabase-client.js` — anonymous identity, question loading, and score recording
+- `config.js` — project URL and browser-safe Supabase publishable key
+- `supabase/` — CLI config, database migration, and question seed
 
-## Put it on GitHub Pages
+## Local development
 
-1. Create a new repository on GitHub (e.g. `quiz`).
-2. Upload these four files (or push them with git):
-   ```
-   git init
-   git add .
-   git commit -m "Quiz Time!"
-   git branch -M main
-   git remote add origin https://github.com/YOUR-USERNAME/quiz.git
-   git push -u origin main
-   ```
-3. On GitHub, open the repo → **Settings** → **Pages**.
-4. Under **Source**, choose **Deploy from a branch**, pick `main` and `/ (root)`, then **Save**.
-5. After a minute, the quiz will be live at
-   `https://YOUR-USERNAME.github.io/quiz/`
+Run a local static server from the repository root:
 
-## Adding questions
-
-Open `questions.js` and add a line like this anywhere in the list:
-
-```js
-H("Your history question?", "Correct answer", "Wrong 1", "Wrong 2", "Wrong 3"),
-G("Your geography question?", "Correct answer", "Wrong 1", "Wrong 2", "Wrong 3"),
+```sh
+python3 -m http.server 3000 --bind 127.0.0.1
 ```
 
-The correct answer always goes **first** — the app shuffles the choices
-automatically every time.
+Then open `http://127.0.0.1:3000`.
+
+The publishable key in `config.js` is intended for browser use. Never put a Supabase secret key or service-role key in this repository.
+
+## Database changes
+
+The repository is linked to the Supabase **Quiz App** project. Use the Supabase CLI migration workflow for schema changes, and keep all exposed tables protected by RLS and explicit grants. Add or edit question content in `supabase/seed.sql`, then apply it with the project’s reviewed database workflow.
+
+Made with ❤️ for Mom.

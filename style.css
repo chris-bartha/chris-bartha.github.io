@@ -75,6 +75,8 @@ html[data-theme="dark"] {
 
 * { box-sizing: border-box; }
 
+[hidden] { display: none !important; }
+
 /* Base size is deliberately large; A−/A+ buttons scale this further. */
 html { font-size: 22px; }
 
@@ -168,6 +170,17 @@ main {
   margin-top: 1.6rem;
 }
 
+.loading-screen {
+  text-align: center;
+  padding-top: 3rem;
+}
+
+.loading-emoji {
+  font-size: 4rem;
+  line-height: 1;
+  margin: 0 0 0.8rem;
+}
+
 /* ---------- Big buttons ---------- */
 
 .big-btn {
@@ -188,6 +201,11 @@ main {
 }
 
 .big-btn:hover { background: var(--paper); }
+
+.big-btn:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
 
 .menu { margin-top: 1.2rem; }
 
@@ -211,6 +229,11 @@ main {
   font-size: 0.95rem;
   color: var(--muted);
   margin-top: 0.15rem;
+}
+
+.fifth-menu-btn {
+  border-color: var(--plum);
+  box-shadow: 0.32rem 0.32rem 0 var(--shadow);
 }
 
 /* ---------- Quiz screen ---------- */
@@ -249,6 +272,75 @@ main {
 .bar span.done {
   background: var(--plum);
   border-color: var(--plum);
+}
+
+.question-meta {
+  display: inline-block;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--on-plum);
+  background: var(--plum);
+  border-radius: 999px;
+  padding: 0.35rem 0.8rem;
+  margin: 0.15rem 0 0.8rem;
+}
+
+/* Fifth-grade mode keeps the three game-show help choices large and explicit. */
+.help-panel {
+  background: var(--card);
+  border: 3px solid var(--plum);
+  border-radius: 1rem;
+  padding: 0.9rem 1rem;
+  margin: 0.3rem 0 1.1rem;
+}
+
+.help-panel h2 {
+  font-size: 1.25rem;
+  line-height: 1.25;
+  margin: 0;
+}
+
+.help-explainer {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0.25rem 0 0.7rem;
+}
+
+.help-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.55rem;
+}
+
+.help-btn {
+  font: inherit;
+  font-weight: 700;
+  color: var(--ink);
+  background: var(--paper);
+  border: 3px solid var(--ink);
+  border-radius: 0.75rem;
+  min-height: 3.2rem;
+  padding: 0.45rem 0.55rem;
+  cursor: pointer;
+}
+
+.help-btn:hover:not(:disabled) { background: var(--card); }
+
+.help-btn:disabled {
+  cursor: default;
+  opacity: 0.72;
+}
+
+.help-btn.is-used {
+  text-decoration: line-through;
+  opacity: 0.6;
+}
+
+.help-status {
+  min-height: 1.5rem;
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0.65rem 0 0;
 }
 
 /* The signature: the question as an oversized flash card */
@@ -391,4 +483,8 @@ main {
    but make sure nothing ever animates for them. */
 @media (prefers-reduced-motion: reduce) {
   * { animation: none !important; transition: none !important; }
+}
+
+@media (max-width: 34rem) {
+  .help-buttons { grid-template-columns: 1fr; }
 }

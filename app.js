@@ -1,18 +1,24 @@
-/* Quiz Time! — app logic. Plain JavaScript, no dependencies. */
+/* Quiz Time! — accessible quiz flow, fifth-grade challenge, and score capture. */
 (function () {
   "use strict";
 
   var ROUND_LENGTH = 10;
-  var FONT_STEPS = [100, 115, 130, 150, 175, 200]; // percent of the 22px base
+  var FONT_STEPS = [100, 115, 130, 150, 175, 200];
+  var FIFTH_PRIZES = [
+    "$1,000", "$2,000", "$5,000", "$10,000", "$25,000",
+    "$50,000", "$100,000", "$175,000", "$300,000", "$1,000,000"
+  ];
 
-  // ---------- Elements ----------
   var screens = {
+    loading: document.getElementById("screen-loading"),
+    error: document.getElementById("screen-error"),
     home: document.getElementById("screen-home"),
     quiz: document.getElementById("screen-quiz"),
     results: document.getElementById("screen-results")
   };
   var progressEl = document.getElementById("progress");
   var barEl = document.getElementById("progress-bar");
+  var questionMetaEl = document.getElementById("question-meta");
   var questionEl = document.getElementById("question-text");
   var optionsEl = document.getElementById("options");
   var feedbackEl = document.getElementById("feedback");
@@ -22,25 +28,45 @@
   var resultEmoji = document.getElementById("result-emoji");
   var resultTitle = document.getElementById("result-title");
   var resultScore = document.getElementById("result-score");
+  var errorMessageEl = document.getElementById("error-message");
+  var fifthHelpEl = document.getElementById("fifth-help");
+  var peekBtn = document.getElementById("peek-btn");
+  var copyBtn = document.getElementById("copy-btn");
+  var saveIndicator = document.getElementById("save-indicator");
+  var helpStatusEl = document.getElementById("help-status");
+  var menuBtns = document.querySelectorAll(".menu-btn");
 
-  // ---------- State ----------
   var state = {
     category: "mix",
-    round: [],       // the questions for this round
-    index: 0,        // which question we are on
+    round: [],
+    index: 0,
     score: 0,
+    firstTryCorrect: 0,
+    secondTryCorrect: 0,
     answered: false,
-    attempts: 0,     // wrong tries on the current question (max 2)
-    fontStep: 1,     // index into FONT_STEPS (default 115%)
-    voiceOn: false
+    attempts: 0,
+    currentSelections: [],
+    answers: [],
+    startedAt: null,
+    fontStep: 1,
+    voiceOn: false,
+    loading: false,
+    classmateAnswer: null,
+    answerViaCopy: false,
+    lifelines: {
+      peek: false,
+      copy: false,
+      save: false,
+      saveSucceeded: false
+    }
   };
 
-  // ---------- Languages ----------
-  // The Hungarian section runs entirely in Hungarian: text and speech.
   var STRINGS = {
     en: {
       lang: "en-US",
-      progress: function (i, n, s) { return "Question " + i + " of " + n + "  •  Score: " + s; },
+      progress: function (i, n, score) {
+        return "Question " + i + " of " + n + "  •  Score: " + score;
+      },
       option: function (i) { return "Option " + i; },
       correct: "✓ Correct! Well done.",
       correctSpoken: "Correct! Well done.",
@@ -48,8 +74,8 @@
       correct2Spoken: "Correct! You got it on the second try.",
       tryAgain: "✗ Not correct — try again!",
       tryAgainSpoken: "Not correct, try again.",
-      reveal: function (a) { return "✗ Not quite. The answer is: " + a; },
-      revealSpoken: function (a) { return "Not quite. The answer is: " + a; },
+      reveal: function (answer) { return "✗ Not quite. The answer is: " + answer; },
+      revealSpoken: function (answer) { return "Not quite. The answer is: " + answer; },
       next: "Next question ➜",
       seeResult: "See my result ➜",
       read: "🔊 Read this question",
@@ -57,12 +83,14 @@
       kbHint: "Tip: you can press 1, 2, 3 or 4 on your keyboard to answer.",
       again: "🔁 Play again",
       home: "🏠 Back to the menu",
-      score: function (s, n) { return "You got " + s + " out of " + n + " right."; },
+      score: function (score, total) { return "You got " + score + " out of " + total + " right."; },
       titles: ["Perfect score!", "Excellent!", "Well done!", "Good effort!", "Nice try — play again!"]
     },
     hu: {
       lang: "hu-HU",
-      progress: function (i, n, s) { return i + ". kérdés a " + n + "-ből  •  Pontszám: " + s; },
+      progress: function (i, n, score) {
+        return i + ". kérdés a " + n + "-ből  •  Pontszám: " + score;
+      },
       option: function (i) { return i + ". válasz"; },
       correct: "✓ Helyes! Ügyes vagy!",
       correctSpoken: "Helyes! Ügyes vagy!",
@@ -70,8 +98,8 @@
       correct2Spoken: "Helyes! Másodikra sikerült!",
       tryAgain: "✗ Nem helyes. Próbáld újra!",
       tryAgainSpoken: "Nem helyes, próbáld újra.",
-      reveal: function (a) { return "✗ Sajnos nem. A helyes válasz: " + a; },
-      revealSpoken: function (a) { return "Sajnos nem. A helyes válasz: " + a; },
+      reveal: function (answer) { return "✗ Sajnos nem. A helyes válasz: " + answer; },
+      revealSpoken: function (answer) { return "Sajnos nem. A helyes válasz: " + answer; },
       next: "Következő kérdés ➜",
       seeResult: "Mutasd az eredményt ➜",
       read: "🔊 Olvasd fel a kérdést",
@@ -79,7 +107,7 @@
       kbHint: "Tipp: a billentyűzeten az 1, 2, 3 vagy 4 gombbal is válaszolhatsz.",
       again: "🔁 Játszom még egyszer",
       home: "🏠 Vissza a menübe",
-      score: function (s, n) { return n + " kérdésből " + s + " helyes válaszod volt."; },
+      score: function (score, total) { return total + " kérdésből " + score + " helyes válaszod volt."; },
       titles: ["Hibátlan! Csodálatos!", "Kiváló!", "Szép munka!", "Jó próbálkozás!", "Ne add fel — próbáld újra!"]
     }
   };
@@ -87,46 +115,48 @@
   function locale() {
     return state.category === "hungarian" ? "hu" : "en";
   }
+
   function L() {
     return STRINGS[locale()];
   }
 
-  function applyLocale() {
-    var s = L();
-    readBtn.textContent = s.read;
-    quitBtn.textContent = s.quit;
-    document.getElementById("kb-hint").innerHTML = s.kbHint.replace("1, 2, 3", "<strong>1, 2, 3</strong>");
-    document.getElementById("again-btn").textContent = s.again;
-    document.getElementById("home-btn").textContent = s.home;
-    var lang = locale() === "hu" ? "hu" : "en";
-    screens.quiz.setAttribute("lang", lang);
-    screens.results.setAttribute("lang", lang);
-  }
-
-  // ---------- Small helpers ----------
-  function shuffle(arr) {
-    var a = arr.slice();
-    for (var i = a.length - 1; i > 0; i--) {
+  function shuffle(items) {
+    var copy = items.slice();
+    for (var i = copy.length - 1; i > 0; i--) {
       var j = Math.floor(Math.random() * (i + 1));
-      var t = a[i]; a[i] = a[j]; a[j] = t;
+      var temporary = copy[i];
+      copy[i] = copy[j];
+      copy[j] = temporary;
     }
-    return a;
+    return copy;
   }
 
   function show(name) {
-    Object.keys(screens).forEach(function (k) {
-      screens[k].hidden = (k !== name);
+    Object.keys(screens).forEach(function (key) {
+      screens[key].hidden = key !== name;
     });
   }
 
   function save(key, value) {
-    try { localStorage.setItem(key, String(value)); } catch (e) { /* ok */ }
-  }
-  function load(key) {
-    try { return localStorage.getItem(key); } catch (e) { return null; }
+    try { localStorage.setItem(key, String(value)); } catch (error) { /* Optional preference. */ }
   }
 
-  // ---------- Text size ----------
+  function load(key) {
+    try { return localStorage.getItem(key); } catch (error) { return null; }
+  }
+
+  function setMenuBusy(busy) {
+    for (var i = 0; i < menuBtns.length; i++) menuBtns[i].disabled = busy;
+  }
+
+  function showError(error) {
+    errorMessageEl.textContent = error && error.message
+      ? error.message
+      : "Please check the internet connection and try again.";
+    show("error");
+    document.getElementById("retry-btn").focus();
+  }
+
   function applyFontStep() {
     document.documentElement.style.fontSize =
       (22 * FONT_STEPS[state.fontStep] / 100) + "px";
@@ -137,12 +167,12 @@
     if (state.fontStep < FONT_STEPS.length - 1) state.fontStep++;
     applyFontStep();
   });
+
   document.getElementById("text-smaller").addEventListener("click", function () {
     if (state.fontStep > 0) state.fontStep--;
     applyFontStep();
   });
 
-  // ---------- Theme ----------
   var themeBtn = document.getElementById("theme-toggle");
   function applyTheme(theme) {
     document.documentElement.setAttribute("data-theme", theme);
@@ -153,38 +183,40 @@
     if (meta) meta.setAttribute("content", dark ? "#161310" : "#fffbf2");
     save("quiz-theme", theme);
   }
+
   themeBtn.addEventListener("click", function () {
     var current = document.documentElement.getAttribute("data-theme");
     applyTheme(current === "dark" ? "light" : "dark");
   });
 
-  // ---------- Voice (read questions out loud) ----------
   var voiceBtn = document.getElementById("voice-toggle");
   var speechOK = "speechSynthesis" in window;
 
   function speak(text) {
     if (!speechOK) return;
     window.speechSynthesis.cancel();
-    var u = new SpeechSynthesisUtterance(text);
-    u.rate = 0.9; // a touch slower, easier to follow
-    u.lang = L().lang;
-    // Prefer a voice that matches the language (e.g. Hungarian)
+    var utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.9;
+    utterance.lang = L().lang;
     var voices = window.speechSynthesis.getVoices();
     for (var i = 0; i < voices.length; i++) {
       if (voices[i].lang && voices[i].lang.indexOf(locale()) === 0) {
-        u.voice = voices[i];
+        utterance.voice = voices[i];
         break;
       }
     }
-    window.speechSynthesis.speak(u);
+    window.speechSynthesis.speak(utterance);
   }
 
   function questionSpeechText() {
-    var q = state.round[state.index];
-    var parts = [q.q];
-    var btns = optionsEl.querySelectorAll(".option-btn:not(:disabled)");
-    for (var i = 0; i < btns.length; i++) {
-      parts.push(L().option(btns[i].dataset.num) + ": " + btns[i].dataset.text);
+    var question = state.round[state.index];
+    if (!question) return "";
+    var parts = [];
+    if (!questionMetaEl.hidden) parts.push(questionMetaEl.textContent);
+    parts.push(question.q);
+    var buttons = optionsEl.querySelectorAll(".option-btn:not(:disabled)");
+    for (var i = 0; i < buttons.length; i++) {
+      parts.push(L().option(buttons[i].dataset.num) + ": " + buttons[i].dataset.text);
     }
     return parts.join(". ");
   }
@@ -199,9 +231,7 @@
     state.voiceOn = !state.voiceOn;
     applyVoice();
     if (state.voiceOn) {
-      speak(screens.quiz.hidden
-        ? "Voice is on. Questions will be read out loud."
-        : questionSpeechText());
+      speak(screens.quiz.hidden ? "Voice is on. Questions will be read out loud." : questionSpeechText());
     } else if (speechOK) {
       window.speechSynthesis.cancel();
     }
@@ -216,147 +246,302 @@
     readBtn.hidden = true;
   }
 
-  // ---------- Quiz flow ----------
-  var ALL_QUESTIONS = QUESTIONS.concat(
-    typeof QUESTIONS_HU !== "undefined" ? QUESTIONS_HU : []
-  );
-
-  function poolFor(category) {
-    if (category === "mix") {
-      // English history + geography only; Hungarian stays its own world
-      return ALL_QUESTIONS.filter(function (q) { return q.cat !== "hungarian"; });
-    }
-    return ALL_QUESTIONS.filter(function (q) { return q.cat === category; });
+  function applyLocale() {
+    var strings = L();
+    readBtn.textContent = strings.read;
+    quitBtn.textContent = strings.quit;
+    document.getElementById("kb-hint").innerHTML = strings.kbHint.replace("1, 2, 3", "<strong>1, 2, 3</strong>");
+    document.getElementById("again-btn").textContent = strings.again;
+    document.getElementById("home-btn").textContent = strings.home;
+    var lang = locale() === "hu" ? "hu" : "en";
+    screens.quiz.setAttribute("lang", lang);
+    screens.results.setAttribute("lang", lang);
   }
 
-  function startRound(category) {
-    state.category = category;
-    state.round = shuffle(poolFor(category)).slice(0, ROUND_LENGTH);
-    state.index = 0;
-    state.score = 0;
-    applyLocale();
-    barEl.innerHTML = "";
-    for (var s = 0; s < state.round.length; s++) {
-      barEl.appendChild(document.createElement("span"));
+  function buildFifthGradeRound(pool) {
+    var round = [];
+    for (var grade = 1; grade <= 5; grade++) {
+      var gradePool = pool.filter(function (question) { return question.grade === grade; });
+      if (gradePool.length < 2) throw new Error("The Grade " + grade + " question set is incomplete.");
+      round = round.concat(shuffle(gradePool).slice(0, 2));
     }
-    show("quiz");
-    renderQuestion();
+    return round;
+  }
+
+  async function startRound(category) {
+    if (state.loading) return;
+    state.loading = true;
+    setMenuBusy(true);
+    show("loading");
+
+    try {
+      var pool = await window.QuizBackend.loadQuestions(category);
+      if (pool.length < ROUND_LENGTH) throw new Error("There are not enough questions in this quiz yet.");
+
+      state.category = category;
+      state.round = category === "fifth_grader"
+        ? buildFifthGradeRound(pool)
+        : shuffle(pool).slice(0, ROUND_LENGTH);
+      state.index = 0;
+      state.score = 0;
+      state.firstTryCorrect = 0;
+      state.secondTryCorrect = 0;
+      state.answers = [];
+      state.startedAt = new Date().toISOString();
+      state.lifelines = { peek: false, copy: false, save: false, saveSucceeded: false };
+
+      applyLocale();
+      barEl.innerHTML = "";
+      for (var i = 0; i < state.round.length; i++) {
+        barEl.appendChild(document.createElement("span"));
+      }
+      show("quiz");
+      renderQuestion();
+    } catch (error) {
+      showError(error);
+    } finally {
+      state.loading = false;
+      setMenuBusy(false);
+    }
   }
 
   function updateBar(doneCount) {
-    var segs = barEl.children;
-    for (var i = 0; i < segs.length; i++) {
-      segs[i].className = i < doneCount ? "done" : "";
+    var segments = barEl.children;
+    for (var i = 0; i < segments.length; i++) {
+      segments[i].className = i < doneCount ? "done" : "";
     }
+  }
+
+  function progressText() {
+    var question = state.round[state.index];
+    if (state.category === "fifth_grader") {
+      return "Grade " + question.grade + "  •  Question " + (state.index + 1) +
+        " of " + state.round.length + "  •  Score: " + state.score;
+    }
+    return L().progress(state.index + 1, state.round.length, state.score);
+  }
+
+  function chooseClassmateAnswer(question) {
+    var correctChance = 0.94 - ((question.grade - 1) * 0.07);
+    if (Math.random() < correctChance) return question.a;
+    return shuffle(question.w)[0];
+  }
+
+  function updateHelpPanel() {
+    var fifthMode = state.category === "fifth_grader";
+    fifthHelpEl.hidden = !fifthMode;
+    if (!fifthMode) return;
+
+    peekBtn.disabled = state.lifelines.peek || state.answered;
+    copyBtn.disabled = state.lifelines.copy || state.answered;
+    peekBtn.classList.toggle("is-used", state.lifelines.peek);
+    copyBtn.classList.toggle("is-used", state.lifelines.copy);
+    peekBtn.textContent = state.lifelines.peek ? "👀 Peek: Used" : "👀 Peek";
+    copyBtn.textContent = state.lifelines.copy ? "📝 Copy: Used" : "📝 Copy";
+    saveIndicator.textContent = state.lifelines.save ? "🛟 Save: Used" : "🛟 Save: Ready";
+    saveIndicator.classList.toggle("is-used", state.lifelines.save);
   }
 
   function renderQuestion() {
     if (speechOK) window.speechSynthesis.cancel();
-    var q = state.round[state.index];
+    var question = state.round[state.index];
     state.answered = false;
     state.attempts = 0;
+    state.currentSelections = [];
+    state.answerViaCopy = false;
     updateBar(state.index);
 
-    progressEl.textContent =
-      L().progress(state.index + 1, state.round.length, state.score);
-
-    questionEl.textContent = q.q;
+    progressEl.textContent = progressText();
+    questionEl.textContent = question.q;
     feedbackEl.textContent = "";
     feedbackEl.className = "feedback";
     nextBtn.hidden = true;
 
-    var choices = shuffle([q.a].concat(q.w));
+    if (state.category === "fifth_grader") {
+      questionMetaEl.hidden = false;
+      questionMetaEl.textContent = "Grade " + question.grade + " " + question.subject +
+        "  •  " + FIFTH_PRIZES[state.index] + " question";
+      state.classmateAnswer = chooseClassmateAnswer(question);
+      helpStatusEl.textContent = state.lifelines.save
+        ? "Your automatic Save has already been used."
+        : "Your classmate is ready to help.";
+    } else {
+      questionMetaEl.hidden = true;
+      questionMetaEl.textContent = "";
+      state.classmateAnswer = null;
+      helpStatusEl.textContent = "";
+    }
+    updateHelpPanel();
+
+    var choices = shuffle([question.a].concat(question.w));
     optionsEl.innerHTML = "";
-    choices.forEach(function (text, i) {
-      var btn = document.createElement("button");
-      btn.type = "button";
-      btn.className = "option-btn";
-      btn.dataset.text = text;
-      btn.dataset.num = String(i + 1);
+    choices.forEach(function (text, index) {
+      var button = document.createElement("button");
+      button.type = "button";
+      button.className = "option-btn";
+      button.dataset.text = text;
+      button.dataset.num = String(index + 1);
 
       var badge = document.createElement("span");
       badge.className = "option-badge";
       badge.setAttribute("aria-hidden", "true");
-      badge.textContent = String(i + 1);
-      btn.appendChild(badge);
+      badge.textContent = String(index + 1);
+      button.appendChild(badge);
 
       var label = document.createElement("span");
       label.textContent = text;
-      btn.appendChild(label);
+      button.appendChild(label);
 
-      btn.setAttribute("aria-label", L().option(i + 1) + ": " + text);
-      btn.addEventListener("click", function () { answer(btn, text === q.a); });
-      optionsEl.appendChild(btn);
+      button.setAttribute("aria-label", L().option(index + 1) + ": " + text);
+      button.addEventListener("click", function () {
+        answer(button, text === question.a);
+      });
+      optionsEl.appendChild(button);
     });
 
     questionEl.focus();
     if (state.voiceOn) speak(questionSpeechText());
   }
 
-  function finishQuestion(chosenWrongBtn) {
-    // Reveal the correct answer, lock every button
-    var q = state.round[state.index];
-    var btns = optionsEl.querySelectorAll(".option-btn");
-    for (var i = 0; i < btns.length; i++) {
-      var b = btns[i];
-      var badge = b.querySelector(".option-badge");
-      if (b.dataset.text === q.a) {
-        b.classList.add("is-correct");
-        b.classList.remove("is-faded");
+  function logAnswer(correct, outcome) {
+    var question = state.round[state.index];
+    state.answers.push({
+      question_id: question.id,
+      grade_level: question.grade || null,
+      subject: question.subject || null,
+      selected_answers: state.currentSelections.slice(),
+      correct: correct,
+      attempts_used: state.currentSelections.length,
+      outcome: outcome
+    });
+  }
+
+  function finishQuestion(chosenWrongButton, correct, outcome) {
+    var question = state.round[state.index];
+    var buttons = optionsEl.querySelectorAll(".option-btn");
+    for (var i = 0; i < buttons.length; i++) {
+      var button = buttons[i];
+      var badge = button.querySelector(".option-badge");
+      if (button.dataset.text === question.a) {
+        button.classList.add("is-correct");
+        button.classList.remove("is-faded");
         badge.textContent = "✓";
-      } else if (b === chosenWrongBtn) {
-        b.classList.add("is-wrong");
+      } else if (button === chosenWrongButton) {
+        button.classList.add("is-wrong");
         badge.textContent = "✗";
-      } else if (!b.classList.contains("is-wrong")) {
-        b.classList.add("is-faded");
+      } else if (!button.classList.contains("is-wrong")) {
+        button.classList.add("is-faded");
       }
-      b.disabled = true;
+      button.disabled = true;
     }
+
     updateBar(state.index + 1);
     state.answered = true;
-
-    progressEl.textContent =
-      L().progress(state.index + 1, state.round.length, state.score);
+    logAnswer(correct, outcome);
+    progressEl.textContent = progressText();
 
     var last = state.index === state.round.length - 1;
     nextBtn.textContent = last ? L().seeResult : L().next;
     nextBtn.hidden = false;
+    updateHelpPanel();
     nextBtn.focus();
   }
 
-  function answer(chosenBtn, isRight) {
-    if (state.answered || chosenBtn.disabled) return;
-    var s = L();
-
+  function regularAnswer(chosenButton, isRight) {
+    var strings = L();
     if (isRight) {
       var secondTry = state.attempts > 0;
       state.score++;
-      feedbackEl.textContent = secondTry ? s.correct2 : s.correct;
+      if (secondTry) state.secondTryCorrect++;
+      else state.firstTryCorrect++;
+      feedbackEl.textContent = secondTry ? strings.correct2 : strings.correct;
       feedbackEl.className = "feedback good";
-      finishQuestion(null);
-      if (state.voiceOn) speak(secondTry ? s.correct2Spoken : s.correctSpoken);
+      finishQuestion(null, true, secondTry ? "second_try" : "first_try");
+      if (state.voiceOn) speak(secondTry ? strings.correct2Spoken : strings.correctSpoken);
       return;
     }
 
     state.attempts++;
     if (state.attempts === 1) {
-      // Second chance: cross out the wrong pick and let her try again
-      chosenBtn.disabled = true;
-      chosenBtn.classList.add("is-wrong");
-      chosenBtn.querySelector(".option-badge").textContent = "✗";
-      feedbackEl.textContent = s.tryAgain;
+      chosenButton.disabled = true;
+      chosenButton.classList.add("is-wrong");
+      chosenButton.querySelector(".option-badge").textContent = "✗";
+      feedbackEl.textContent = strings.tryAgain;
       feedbackEl.className = "feedback bad";
-      speak(s.tryAgainSpoken);
+      if (state.voiceOn) speak(strings.tryAgainSpoken);
       return;
     }
 
-    // Second miss: show the answer and move on
-    var q = state.round[state.index];
-    feedbackEl.textContent = s.reveal(q.a);
+    var question = state.round[state.index];
+    feedbackEl.textContent = strings.reveal(question.a);
     feedbackEl.className = "feedback bad";
-    finishQuestion(chosenBtn);
-    if (state.voiceOn) speak(s.revealSpoken(q.a));
+    finishQuestion(chosenButton, false, "incorrect");
+    if (state.voiceOn) speak(strings.revealSpoken(question.a));
   }
+
+  function fifthGradeAnswer(chosenButton, isRight) {
+    var question = state.round[state.index];
+    if (isRight) {
+      state.score++;
+      state.firstTryCorrect++;
+      feedbackEl.textContent = "✓ Correct! You are climbing the grade-school ladder.";
+      feedbackEl.className = "feedback good";
+      finishQuestion(null, true, state.answerViaCopy ? "copy" : "first_try");
+      if (state.voiceOn) speak("Correct! You are climbing the grade school ladder.");
+      return;
+    }
+
+    if (!state.lifelines.save) {
+      state.lifelines.save = true;
+      if (state.classmateAnswer === question.a) {
+        state.lifelines.saveSucceeded = true;
+        state.score++;
+        state.secondTryCorrect++;
+        feedbackEl.textContent = "🛟 Saved! Your classmate knew the answer: " + question.a;
+        feedbackEl.className = "feedback good";
+        helpStatusEl.textContent = "Your automatic Save kept you in the game.";
+        finishQuestion(chosenButton, true, "saved");
+        if (state.voiceOn) speak("Saved! Your classmate knew the answer.");
+        return;
+      }
+      helpStatusEl.textContent = "Your classmate missed this one too, so the Save was used.";
+    }
+
+    feedbackEl.textContent = "✗ Not this time. The answer is: " + question.a;
+    feedbackEl.className = "feedback bad";
+    finishQuestion(chosenButton, false, state.answerViaCopy ? "copy_incorrect" : "incorrect");
+    if (state.voiceOn) speak("Not this time. The answer is " + question.a);
+  }
+
+  function answer(chosenButton, isRight) {
+    if (state.answered || chosenButton.disabled) return;
+    state.currentSelections.push(chosenButton.dataset.text);
+    if (state.category === "fifth_grader") fifthGradeAnswer(chosenButton, isRight);
+    else regularAnswer(chosenButton, isRight);
+  }
+
+  peekBtn.addEventListener("click", function () {
+    if (state.answered || state.lifelines.peek) return;
+    state.lifelines.peek = true;
+    helpStatusEl.textContent = "Your classmate chose: “" + state.classmateAnswer + ".” You may choose any answer.";
+    updateHelpPanel();
+    if (state.voiceOn) speak(helpStatusEl.textContent);
+  });
+
+  copyBtn.addEventListener("click", function () {
+    if (state.answered || state.lifelines.copy) return;
+    state.lifelines.copy = true;
+    state.answerViaCopy = true;
+    helpStatusEl.textContent = "Copy used. Your classmate chose: “" + state.classmateAnswer + ".”";
+    updateHelpPanel();
+    var buttons = optionsEl.querySelectorAll(".option-btn");
+    for (var i = 0; i < buttons.length; i++) {
+      if (buttons[i].dataset.text === state.classmateAnswer) {
+        buttons[i].click();
+        break;
+      }
+    }
+  });
 
   nextBtn.addEventListener("click", function () {
     if (state.index < state.round.length - 1) {
@@ -372,66 +557,97 @@
     show("home");
   });
 
+  function resultPayload() {
+    var startedTime = new Date(state.startedAt).getTime();
+    var duration = Math.max(0, Math.round((Date.now() - startedTime) / 1000));
+    var lifelines = state.category === "fifth_grader" ? {
+      peek: state.lifelines.peek,
+      copy: state.lifelines.copy,
+      save: state.lifelines.save,
+      save_succeeded: state.lifelines.saveSucceeded
+    } : {};
+
+    return {
+      score: state.score,
+      totalQuestions: state.round.length,
+      firstTryCorrect: state.firstTryCorrect,
+      secondTryCorrect: state.secondTryCorrect,
+      startedAt: state.startedAt,
+      durationSeconds: duration,
+      answers: state.answers,
+      lifelinesUsed: lifelines
+    };
+  }
+
   function showResults() {
     var total = state.round.length;
-    var s = state.score;
-    var t = L();
-    var emoji, title;
-    if (s === total)           { emoji = "🌟🌟🌟"; title = t.titles[0]; }
-    else if (s >= total * 0.8) { emoji = "🎉";  title = t.titles[1]; }
-    else if (s >= total * 0.6) { emoji = "😊";  title = t.titles[2]; }
-    else if (s >= total * 0.4) { emoji = "👍";  title = t.titles[3]; }
-    else                       { emoji = "💪";  title = t.titles[4]; }
+    var score = state.score;
+    var strings = L();
+    var emoji;
+    var title;
+    if (score === total) { emoji = "🌟🌟🌟"; title = strings.titles[0]; }
+    else if (score >= total * 0.8) { emoji = "🎉"; title = strings.titles[1]; }
+    else if (score >= total * 0.6) { emoji = "😊"; title = strings.titles[2]; }
+    else if (score >= total * 0.4) { emoji = "👍"; title = strings.titles[3]; }
+    else { emoji = "💪"; title = strings.titles[4]; }
 
     resultEmoji.textContent = emoji;
     resultTitle.textContent = title;
-    resultScore.textContent = t.score(s, total);
+    resultScore.textContent = strings.score(score, total);
     show("results");
     resultTitle.focus();
-    if (state.voiceOn) {
-      speak(title + " " + t.score(s, total));
-    }
+    if (state.voiceOn) speak(title + " " + strings.score(score, total));
+
+    window.QuizBackend.recordResult(state.category, resultPayload()).catch(function (error) {
+      console.error("Quiz score tracking failed:", error);
+    });
   }
 
   document.getElementById("again-btn").addEventListener("click", function () {
     startRound(state.category);
   });
+
   document.getElementById("home-btn").addEventListener("click", function () {
     show("home");
   });
 
-  // Menu buttons
-  var menuBtns = document.querySelectorAll(".menu-btn");
-  for (var m = 0; m < menuBtns.length; m++) {
-    (function (btn) {
-      btn.addEventListener("click", function () {
-        startRound(btn.dataset.category);
+  for (var menuIndex = 0; menuIndex < menuBtns.length; menuIndex++) {
+    (function (button) {
+      button.addEventListener("click", function () {
+        startRound(button.dataset.category);
       });
-    })(menuBtns[m]);
+    })(menuBtns[menuIndex]);
   }
 
-  // Keyboard: 1–4 picks an answer while the quiz is showing
-  document.addEventListener("keydown", function (e) {
+  document.addEventListener("keydown", function (event) {
     if (screens.quiz.hidden || state.answered) return;
-    var n = parseInt(e.key, 10);
-    if (n >= 1 && n <= 4) {
-      var btns = optionsEl.querySelectorAll(".option-btn");
-      if (btns[n - 1]) btns[n - 1].click();
+    var number = parseInt(event.key, 10);
+    if (number >= 1 && number <= 4) {
+      var buttons = optionsEl.querySelectorAll(".option-btn");
+      if (buttons[number - 1]) buttons[number - 1].click();
     }
   });
 
-  // ---------- Restore saved settings and start ----------
+  async function initializeApp() {
+    show("loading");
+    try {
+      await window.QuizBackend.initialize();
+      show("home");
+      document.querySelector(".menu-btn").focus();
+    } catch (error) {
+      showError(error);
+    }
+  }
+
+  document.getElementById("retry-btn").addEventListener("click", initializeApp);
+
   var savedStep = parseInt(load("quiz-font-step"), 10);
   if (!isNaN(savedStep) && savedStep >= 0 && savedStep < FONT_STEPS.length) {
     state.fontStep = savedStep;
   }
   applyFontStep();
-
-  var savedTheme = load("quiz-theme");
-  applyTheme(savedTheme === "dark" ? "dark" : "light");
-
+  applyTheme(load("quiz-theme") === "dark" ? "dark" : "light");
   state.voiceOn = load("quiz-voice") === "on";
   applyVoice();
-
-  show("home");
+  initializeApp();
 })();
