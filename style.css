@@ -481,6 +481,27 @@ main {
   margin: 0.4rem 0 1.4rem;
 }
 
+.share-btn {
+  text-align: center;
+  color: var(--on-plum);
+  background: var(--plum);
+  border-color: var(--plum);
+  box-shadow: 0.35rem 0.35rem 0 var(--shadow);
+  margin-bottom: 0.45rem;
+}
+
+.share-btn:hover:not(:disabled) {
+  background: var(--plum);
+  opacity: 0.92;
+}
+
+.share-status {
+  color: var(--muted);
+  font-size: 0.95rem;
+  text-align: center;
+  margin: 0 0 1.3rem;
+}
+
 /* ---------- Footer ---------- */
 
 .footer {

@@ -8,6 +8,13 @@
     "$1,000", "$2,000", "$5,000", "$10,000", "$25,000",
     "$50,000", "$100,000", "$175,000", "$300,000", "$1,000,000"
   ];
+  var CATEGORY_NAMES = {
+    history: "History",
+    geography: "Geography",
+    mix: "History and Geography",
+    hungarian: "History in Hungarian",
+    fifth_grader: "Are You Smarter Than a Fifth Grader?"
+  };
 
   var screens = {
     loading: document.getElementById("screen-loading"),
@@ -28,6 +35,8 @@
   var resultEmoji = document.getElementById("result-emoji");
   var resultTitle = document.getElementById("result-title");
   var resultScore = document.getElementById("result-score");
+  var shareBtn = document.getElementById("share-btn");
+  var shareStatusEl = document.getElementById("share-status");
   var errorMessageEl = document.getElementById("error-message");
   var fifthHelpEl = document.getElementById("fifth-help");
   var peekBtn = document.getElementById("peek-btn");
@@ -83,6 +92,9 @@
       kbHint: "Tip: you can press 1, 2, 3 or 4 on your keyboard to answer.",
       again: "🔁 Play again",
       home: "🏠 Back to the menu",
+      share: "💬 Text my score",
+      shareHelp: "Opens your sharing menu with a ready-to-send message.",
+      shareReady: "Your score is ready to send.",
       score: function (score, total) { return "You got " + score + " out of " + total + " right."; },
       titles: ["Perfect score!", "Excellent!", "Well done!", "Good effort!", "Nice try — play again!"]
     },
@@ -107,6 +119,9 @@
       kbHint: "Tipp: a billentyűzeten az 1, 2, 3 vagy 4 gombbal is válaszolhatsz.",
       again: "🔁 Játszom még egyszer",
       home: "🏠 Vissza a menübe",
+      share: "💬 Elküldöm az eredményt",
+      shareHelp: "Megnyitja a megosztást egy elkészített üzenettel.",
+      shareReady: "Az üzenet elkészült.",
       score: function (score, total) { return total + " kérdésből " + score + " helyes válaszod volt."; },
       titles: ["Hibátlan! Csodálatos!", "Kiváló!", "Szép munka!", "Jó próbálkozás!", "Ne add fel — próbáld újra!"]
     }
@@ -271,6 +286,8 @@
     document.getElementById("kb-hint").innerHTML = strings.kbHint.replace("1, 2, 3", "<strong>1, 2, 3</strong>");
     document.getElementById("again-btn").textContent = strings.again;
     document.getElementById("home-btn").textContent = strings.home;
+    shareBtn.textContent = strings.share;
+    shareStatusEl.textContent = strings.shareHelp;
     var lang = locale() === "hu" ? "hu" : "en";
     screens.quiz.setAttribute("lang", lang);
     screens.results.setAttribute("lang", lang);
@@ -612,6 +629,44 @@
     };
   }
 
+  function shareResultText() {
+    var categoryName = CATEGORY_NAMES[state.category] || "Quiz Time";
+    var secondChanceText;
+
+    if (state.secondTryCorrect === 0) {
+      secondChanceText = "No points came from second chances.";
+    } else if (state.secondTryCorrect === 1) {
+      secondChanceText = "1 point came from a second chance.";
+    } else {
+      secondChanceText = state.secondTryCorrect + " points came from second chances.";
+    }
+
+    return "I scored " + state.score + " out of " + state.round.length +
+      " on the " + categoryName + " quiz! " + secondChanceText + " 😊";
+  }
+
+  function openMessageComposer(text) {
+    window.location.href = "sms:?&body=" + encodeURIComponent(text);
+  }
+
+  shareBtn.addEventListener("click", async function () {
+    var text = shareResultText();
+    shareBtn.disabled = true;
+
+    try {
+      if (typeof navigator.share === "function") {
+        await navigator.share({ text: text });
+        shareStatusEl.textContent = L().shareReady;
+      } else {
+        openMessageComposer(text);
+      }
+    } catch (error) {
+      if (!error || error.name !== "AbortError") openMessageComposer(text);
+    } finally {
+      shareBtn.disabled = false;
+    }
+  });
+
   function showResults() {
     var total = state.round.length;
     var score = state.score;
@@ -627,6 +682,7 @@
     resultEmoji.textContent = emoji;
     resultTitle.textContent = title;
     resultScore.textContent = strings.score(score, total);
+    shareStatusEl.textContent = strings.shareHelp;
     show("results");
     resultTitle.focus();
     if (state.voiceOn) speak(title + " " + strings.score(score, total));

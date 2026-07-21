@@ -29,6 +29,7 @@ History, Geography, Mixed, and Hungarian quizzes keep the friendly second-chance
 - Keyboard shortcuts 1–4 for answer choices
 - High contrast, strong focus rings, and answer states that do not rely on color alone
 - No required typing or recurring sign-in
+- A large results-only share button that prepares a plain-text score message
 
 ## Supabase data
 
