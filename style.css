@@ -364,12 +364,14 @@ main {
   padding: 1.2rem 1.4rem;
   margin: 0.4rem 0 1.2rem;
   box-shadow: 0.45rem 0.45rem 0 var(--shadow);
+  scroll-margin-top: 0.75rem;
 }
 
 .question {
   font-size: 1.6rem;
   line-height: 1.35;
   margin: 0;
+  overflow-wrap: anywhere;
 }
 
 .options .option-btn {
@@ -388,6 +390,7 @@ main {
   min-height: 4.2rem;
   margin: 0.7rem 0;
   cursor: pointer;
+  overflow-wrap: anywhere;
 }
 
 .options .option-btn:hover:not(:disabled) { background: var(--paper); }

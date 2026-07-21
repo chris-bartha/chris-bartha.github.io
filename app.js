@@ -27,6 +27,7 @@
   var barEl = document.getElementById("progress-bar");
   var questionMetaEl = document.getElementById("question-meta");
   var questionEl = document.getElementById("question-text");
+  var questionCardEl = questionEl.parentElement;
   var optionsEl = document.getElementById("options");
   var feedbackEl = document.getElementById("feedback");
   var nextBtn = document.getElementById("next-btn");
@@ -445,7 +446,20 @@
       optionsEl.appendChild(button);
     });
 
-    questionEl.focus();
+    if (state.index === 0) {
+      questionEl.focus();
+    } else {
+      /* Mobile browsers can preserve the tapped Next button's lower scroll
+         position. Wait for the new layout, then align the question card. */
+      window.requestAnimationFrame(function () {
+        try {
+          questionEl.focus({ preventScroll: true });
+        } catch (error) {
+          questionEl.focus();
+        }
+        questionCardEl.scrollIntoView({ behavior: "auto", block: "start" });
+      });
+    }
     if (state.voiceOn) speak(questionSpeechText());
   }
 
