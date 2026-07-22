@@ -48,13 +48,15 @@ Completed scores are deliberately separated by quiz:
 - `hungarian_quiz_results`
 - `fifth_grader_quiz_results`
 
-`quiz_metrics` contains each player’s quiz count, average percentage, best percentage, cumulative totals, latest score, and latest play time for each category. `quiz_metrics_dashboard` joins those metrics with the anonymous device ID and browser timezone for easy reading in the Supabase SQL editor.
+`quiz_metrics` contains each player’s quiz count, average percentage, best percentage, cumulative totals, latest score, and latest play time for each category. `quiz_metrics_dashboard` joins those metrics with the anonymous device ID and browser timezone for easy reading in the Supabase SQL editor. Database triggers recompute the affected metrics and synchronize `quiz_public_attempts` after every result insert, update, or delete, so dashboard totals stay aligned with the five source result tables.
 
 The browser signs in with Supabase Anonymous Auth. Row Level Security allows players to read active questions, manage only their own device profile, and insert only their own score rows. Private per-player metrics and full result records are not exposed to browser users.
 
 ## Metrics dashboard
 
-Visit `/metrics` for the dark, owner-facing activity dashboard. It shows all-time and daily totals, category performance, score distribution, streaks, timing, second-chance points, a 30-day activity graph, and the latest sessions. The dashboard keeps a small local snapshot so it can paint immediately on repeat visits, then refreshes once in the background.
+Visit `/metrics` for the dark, owner-facing activity dashboard. It shows all-time and daily totals, category performance, score distribution, streaks, timing, second-chance points, a 30-day activity graph, and the latest sessions. It always starts with a fresh database request, refreshes every 15 seconds while visible, and refreshes immediately when you return to a stale tab.
+
+The dashboard code and database request are isolated to the `/metrics` directory. Visiting the main quiz page does not download the dashboard assets or request its statistics.
 
 The dashboard is intentionally public. Its single aggregate request reads from `quiz_public_attempts`, a sanitized projection that contains no user IDs, device IDs, answer details, or question text. The original per-category result tables remain blocked from the public API.
 

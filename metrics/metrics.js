@@ -1,7 +1,8 @@
 (function () {
   "use strict";
 
-  var CACHE_KEY = "quiz-metrics-cache-v1";
+  var AUTO_REFRESH_MS = 15000;
+  var RETRY_REFRESH_MS = 30000;
   var CATEGORY_ICONS = {
     history: "🏛",
     geography: "◉",
@@ -26,6 +27,8 @@
   var scoreSelect = document.getElementById("score-select");
   var currentMetrics = null;
   var isLoading = false;
+  var refreshTimer = null;
+  var lastRefreshAt = 0;
 
   function escapeHtml(value) {
     return String(value == null ? "" : value)
@@ -68,6 +71,16 @@
     }).format(new Date(value));
   }
 
+  function timeWithSeconds(value, timezone) {
+    if (!value) return "—";
+    return new Intl.DateTimeFormat(undefined, {
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+      timeZone: timezone || undefined
+    }).format(new Date(value));
+  }
+
   function dateOnly(value) {
     if (!value) return "—";
     return new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" })
@@ -82,17 +95,8 @@
     return CATEGORY_ICONS[id] || "●";
   }
 
-  function readCache() {
-    try {
-      var saved = localStorage.getItem(CACHE_KEY);
-      return saved ? JSON.parse(saved) : null;
-    } catch (error) {
-      return null;
-    }
-  }
-
-  function writeCache(metrics) {
-    try { localStorage.setItem(CACHE_KEY, JSON.stringify(metrics)); } catch (error) { /* Cache is optional. */ }
+  function scoreKey(item) {
+    return item.score + "-" + item.total_questions;
   }
 
   function renderHero(metrics) {
@@ -129,14 +133,16 @@
     setText("chart-start", activity.length ? dateOnly(activity[0].date) : "30 days ago");
   }
 
-  function renderScoreChoice(index) {
+  function renderScoreChoice(key) {
     if (!currentMetrics || !currentMetrics.score_distribution.length) {
       document.getElementById("score-spotlight").innerHTML = '<p class="empty-state">No scores yet.</p>';
       document.getElementById("score-categories").innerHTML = "";
       return;
     }
 
-    var item = currentMetrics.score_distribution[index] || currentMetrics.score_distribution[0];
+    var item = currentMetrics.score_distribution.filter(function (candidate) {
+      return scoreKey(candidate) === key;
+    })[0] || currentMetrics.score_distribution[0];
     document.getElementById("score-spotlight").innerHTML =
       "<strong>" + number(item.quizzes) + "</strong>" +
       "<b>" + escapeHtml(item.score + "/" + item.total_questions) + " scores</b>" +
@@ -153,16 +159,20 @@
     if (!distribution.length) {
       scoreSelect.innerHTML = '<option>No scores yet</option>';
       scoreSelect.disabled = true;
-      renderScoreChoice(0);
+      renderScoreChoice("");
       return;
     }
 
+    var previousSelection = scoreSelect.value;
     scoreSelect.disabled = false;
-    scoreSelect.innerHTML = distribution.map(function (item, index) {
-      return '<option value="' + index + '">' + escapeHtml(item.score + "/" + item.total_questions) +
+    scoreSelect.innerHTML = distribution.map(function (item) {
+      return '<option value="' + scoreKey(item) + '">' + escapeHtml(item.score + "/" + item.total_questions) +
         " — " + plural(item.quizzes, "quiz", "quizzes") + "</option>";
     }).join("");
-    renderScoreChoice(0);
+    if (distribution.some(function (item) { return scoreKey(item) === previousSelection; })) {
+      scoreSelect.value = previousSelection;
+    }
+    renderScoreChoice(scoreSelect.value);
   }
 
   function renderCategories(metrics) {
@@ -242,7 +252,7 @@
     }).join("");
   }
 
-  function render(metrics, source) {
+  function render(metrics) {
     currentMetrics = metrics;
     renderHero(metrics);
     renderActivity(metrics);
@@ -255,16 +265,15 @@
     loadingState.hidden = true;
     errorState.hidden = true;
     dashboard.hidden = false;
-    var updated = dateTime(metrics.generated_at, metrics.timezone);
-    dataStatus.textContent = source === "cache"
-      ? "Showing saved data from " + updated + " · refreshing…"
-      : "Updated " + updated + " · " + metrics.timezone;
+    dataStatus.textContent = "Live · refreshed at " +
+      timeWithSeconds(metrics.generated_at, metrics.timezone) +
+      " · every 15 seconds";
     setText("footer-timezone", "Times shown in " + metrics.timezone);
   }
 
   function showError(error) {
     if (currentMetrics) {
-      dataStatus.textContent = "Couldn’t refresh · showing the most recent saved data";
+      dataStatus.textContent = "Live refresh paused · retrying in 30 seconds";
       return;
     }
     loadingState.hidden = true;
@@ -274,11 +283,26 @@
     dataStatus.textContent = "Database unavailable";
   }
 
-  async function loadMetrics() {
+  function scheduleRefresh(delay) {
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = null;
+    if (document.visibilityState !== "visible") return;
+    refreshTimer = setTimeout(function () {
+      loadMetrics({ background: true });
+    }, delay || AUTO_REFRESH_MS);
+  }
+
+  async function loadMetrics(options) {
     if (isLoading) return;
+    if (refreshTimer) clearTimeout(refreshTimer);
+    refreshTimer = null;
     isLoading = true;
-    refreshButton.classList.add("is-loading");
-    refreshButton.disabled = true;
+    var background = options && options.background;
+    var nextRefresh = AUTO_REFRESH_MS;
+    if (!background) {
+      refreshButton.classList.add("is-loading");
+      refreshButton.disabled = true;
+    }
 
     try {
       var config = window.QUIZ_CONFIG || {};
@@ -290,6 +314,7 @@
 
       var response = await fetch(config.supabaseUrl + "/rest/v1/rpc/get_quiz_public_metrics", {
         method: "POST",
+        cache: "no-store",
         headers: {
           apikey: config.supabasePublishableKey,
           "Content-Type": "application/json"
@@ -306,24 +331,46 @@
       if (!metrics || !metrics.overview || !Array.isArray(metrics.categories)) {
         throw new Error("The metrics response was incomplete.");
       }
-      writeCache(metrics);
-      render(metrics, "live");
+      lastRefreshAt = Date.now();
+      render(metrics);
     } catch (error) {
+      nextRefresh = RETRY_REFRESH_MS;
       showError(error);
     } finally {
       isLoading = false;
-      refreshButton.classList.remove("is-loading");
-      refreshButton.disabled = false;
+      if (!background) {
+        refreshButton.classList.remove("is-loading");
+        refreshButton.disabled = false;
+      }
+      scheduleRefresh(nextRefresh);
     }
   }
 
   scoreSelect.addEventListener("change", function () {
-    renderScoreChoice(Number(scoreSelect.value) || 0);
+    renderScoreChoice(scoreSelect.value);
   });
-  refreshButton.addEventListener("click", loadMetrics);
-  document.getElementById("retry-button").addEventListener("click", loadMetrics);
+  refreshButton.addEventListener("click", function () {
+    loadMetrics({ background: false });
+  });
+  document.getElementById("retry-button").addEventListener("click", function () {
+    loadMetrics({ background: false });
+  });
+  document.addEventListener("visibilitychange", function () {
+    if (document.visibilityState !== "visible") {
+      if (refreshTimer) clearTimeout(refreshTimer);
+      refreshTimer = null;
+      return;
+    }
+    if (!lastRefreshAt || Date.now() - lastRefreshAt >= AUTO_REFRESH_MS) {
+      loadMetrics({ background: true });
+    } else {
+      scheduleRefresh(AUTO_REFRESH_MS - (Date.now() - lastRefreshAt));
+    }
+  });
+  window.addEventListener("pagehide", function () {
+    if (refreshTimer) clearTimeout(refreshTimer);
+  });
 
-  var cached = readCache();
-  if (cached && cached.overview && Array.isArray(cached.categories)) render(cached, "cache");
-  loadMetrics();
+  try { localStorage.removeItem("quiz-metrics-cache-v1"); } catch (error) { /* Old cache cleanup is optional. */ }
+  loadMetrics({ background: false });
 }());
