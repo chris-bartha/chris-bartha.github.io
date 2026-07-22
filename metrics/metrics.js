@@ -247,7 +247,7 @@
         '<div class="category-stats"><span>Average<b>' + percent(category.average_percentage) + '</b></span>' +
         '<span>Best<b>' + percent(category.best_percentage) + '</b></span>' +
         '<span>Perfect<b>' + number(category.perfect_scores) + '</b></span></div>' +
-        '<p class="category-unlimited">😈 ' + (category.unlimited_quizzes
+        '<p class="category-unlimited">' + (category.unlimited_quizzes
           ? plural(category.unlimited_quizzes, "Unlimited run") + ' · best ' + number(category.unlimited_best_score)
           : 'No Unlimited runs') + '</p>' +
         '<p class="category-last">' + escapeHtml(last) + '</p></article>';
@@ -303,7 +303,7 @@
       var score = unlimited ? number(result.score) + " correct" : result.score + "/" + result.total_questions;
       return "<tr><td>" + escapeHtml(dateTime(result.completed_at, metrics.timezone)) + "</td>" +
         '<td><span class="mode-badge ' + (unlimited ? "is-unlimited" : "") + '">' +
-          (unlimited ? "😈 Unlimited" : "Standard") + "</span></td>" +
+          (unlimited ? "Unlimited" : "Standard") + "</span></td>" +
         '<td><span class="table-category"><span>' + categoryIcon(result.category_id) + "</span>" + escapeHtml(result.category_name) + "</span></td>" +
         '<td><span class="score-badge ' + (unlimited ? "is-unlimited" : "") + '">' + escapeHtml(score) + "</span></td>" +
         "<td>" + number(result.first_try_correct) + "</td>" +
