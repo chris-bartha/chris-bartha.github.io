@@ -5,7 +5,6 @@
   var RESULT_TABLES = {
     history: "history_quiz_results",
     geography: "geography_quiz_results",
-    mix: "mixed_quiz_results",
     hungarian: "hungarian_quiz_results",
     textbook_history: "textbook_history_quiz_results",
     fifth_grader: "fifth_grader_quiz_results"
@@ -95,10 +94,6 @@
     }
   }
 
-  function sourceCategories(category) {
-    return category === "mix" ? ["history", "geography"] : [category];
-  }
-
   function mapQuestion(row) {
     return {
       id: row.id,
@@ -121,7 +116,7 @@
     var result = await client
       .from("quiz_questions")
       .select("id, category_id, prompt, correct_answer, wrong_answers, grade_level, subject, times_shown, times_answered, times_correct")
-      .in("category_id", sourceCategories(category))
+      .eq("category_id", category)
       .eq("is_active", true)
       .order("display_order", { ascending: true });
 

@@ -18,11 +18,11 @@ The fifth-grade challenge asks two questions from each grade, in order from Grad
 - **Copy** commits to the simulated classmate’s answer.
 - **Save** is automatic after a wrong answer and succeeds only when the simulated classmate is right.
 
-History, Geography, Mixed, Hungarian, and Textbook History quizzes keep the friendly second-chance rule from the original app.
+History, Geography, Hungarian, and Textbook History quizzes keep the friendly second-chance rule from the original app.
 
 ## Unlimited Mode
 
-The large **Unlimited Mode** control on the quiz menu turns History, Geography, Mixed, Hungarian, and Textbook History into sudden-death runs. Questions continue through the weighted category library until one question is answered incorrectly twice. The second chance remains available, and Fifth Grader is visibly unavailable until Unlimited Mode is turned off again.
+The large **Unlimited Mode** control on the quiz menu turns History, Geography, Hungarian, and Textbook History into sudden-death runs. Questions continue through the weighted category library until one question is answered incorrectly twice. The second chance remains available, and Fifth Grader is visibly unavailable until Unlimited Mode is turned off again.
 
 Unlimited results are stored in the same per-category result tables with `is_unlimited = true`; every result created before this feature is marked `false`. Standard quiz counts, averages, perfect scores, category performance, and score distribution remain standard-only. Daily activity, streaks, correct-answer totals, and second-chance totals include both modes. Unlimited runs also have separate counts, category records, and a dated top-three leaderboard.
 
@@ -53,10 +53,11 @@ Completed scores are deliberately separated by quiz:
 
 - `history_quiz_results`
 - `geography_quiz_results`
-- `mixed_quiz_results`
 - `hungarian_quiz_results`
 - `textbook_history_quiz_results`
 - `fifth_grader_quiz_results`
+
+The retired `mixed_quiz_results` table is kept only so its historical score remains intact; no new mixed quizzes are offered.
 
 `quiz_metrics` contains each player’s quiz count, average percentage, best percentage, cumulative totals, latest score, and latest play time for each category. `quiz_metrics_dashboard` joins those metrics with the anonymous device ID and browser timezone for easy reading in the Supabase SQL editor. Database triggers recompute the affected metrics and synchronize `quiz_public_attempts` after every result insert, update, or delete, so dashboard totals stay aligned with the six source result tables.
 

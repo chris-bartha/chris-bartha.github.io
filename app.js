@@ -11,7 +11,6 @@
   var CATEGORY_NAMES = {
     history: "History",
     geography: "Geography",
-    mix: "History and Geography",
     hungarian: "History in Hungarian",
     textbook_history: "Tankönyvi történelem",
     fifth_grader: "Are You Smarter Than a Fifth Grader?"
@@ -53,7 +52,7 @@
   var fifthMenuDescription = document.getElementById("fifth-menu-description");
 
   var state = {
-    category: "mix",
+    category: "textbook_history",
     round: [],
     index: 0,
     score: 0,
