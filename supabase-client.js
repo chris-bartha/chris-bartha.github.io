@@ -155,6 +155,7 @@
       total_questions: result.totalQuestions,
       first_try_correct: result.firstTryCorrect,
       second_try_correct: result.secondTryCorrect,
+      is_unlimited: Boolean(result.isUnlimited),
       started_at: result.startedAt,
       duration_seconds: result.durationSeconds,
       answers: result.answers,

@@ -58,7 +58,7 @@
         <article class="metric-card metric-card-primary">
           <div class="metric-topline"><span>Total quizzes</span><span class="metric-icon">Σ</span></div>
           <strong id="total-quizzes" class="metric-value">—</strong>
-          <p id="total-quizzes-note" class="metric-note">Across every category</p>
+          <p id="total-quizzes-note" class="metric-note">Standard rounds only</p>
         </article>
         <article class="metric-card">
           <div class="metric-topline"><span>Today</span><span class="metric-icon accent-green">↗</span></div>
@@ -81,7 +81,8 @@
       <section class="compact-metrics">
         <article><span>Correct answers</span><strong id="correct-answers">—</strong><small id="correct-answers-note">—</small></article>
         <article><span>Second-chance points</span><strong id="second-chances">—</strong><small id="second-chances-note">—</small></article>
-        <article><span>Average quiz time</span><strong id="average-time">—</strong><small>From start to finish</small></article>
+        <article class="unlimited-compact"><span>Unlimited runs</span><strong id="unlimited-runs">—</strong><small>Tracked separately</small></article>
+        <article><span>Average standard time</span><strong id="average-time">—</strong><small>From start to finish</small></article>
         <article><span>Current streak</span><strong id="current-streak">—</strong><small id="streak-note">—</small></article>
       </section>
 
@@ -90,19 +91,20 @@
           <div class="panel-heading">
             <div>
               <p class="section-kicker">Last 30 days</p>
-              <h2>Quiz activity</h2>
+              <h2>All quiz activity</h2>
             </div>
             <div class="panel-stat"><strong id="month-total">—</strong><span>quizzes</span></div>
           </div>
           <div id="activity-chart" class="activity-chart"></div>
           <div class="chart-axis"><span id="chart-start">—</span><span>Today</span></div>
+          <div class="activity-legend"><span><i></i>Standard</span><span><i></i>Unlimited</span></div>
         </article>
 
         <article class="panel score-panel">
           <div class="panel-heading">
             <div>
-              <p class="section-kicker">Score finder</p>
-              <h2>How often did each score happen?</h2>
+              <p class="section-kicker">Standard score finder</p>
+              <h2>How often did each standard score happen?</h2>
             </div>
           </div>
           <label class="score-select-label" for="score-select">Choose a score</label>
@@ -112,11 +114,32 @@
         </article>
       </section>
 
+      <section class="section-block unlimited-section">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker unlimited-kicker">Unlimited Mode</p>
+            <h2>Sudden-death records</h2>
+          </div>
+          <p id="unlimited-summary" class="section-summary">A second missed answer ends each run.</p>
+        </div>
+        <div class="unlimited-metric-grid">
+          <article><span>Runs completed</span><strong id="unlimited-run-count">—</strong></article>
+          <article><span>Highest score</span><strong id="unlimited-best-score">—</strong></article>
+          <article><span>Average score</span><strong id="unlimited-average-score">—</strong></article>
+          <article><span>Second-chance points</span><strong id="unlimited-second-chances">—</strong></article>
+        </div>
+        <div class="unlimited-records-heading">
+          <h3>Top three runs</h3>
+          <span>Highest score first</span>
+        </div>
+        <div id="unlimited-top-runs" class="unlimited-top-runs"></div>
+      </section>
+
       <section class="section-block">
         <div class="section-heading">
           <div>
             <p class="section-kicker">Category breakdown</p>
-            <h2>Every quiz at a glance</h2>
+            <h2>Standard results, with Unlimited records</h2>
           </div>
           <p id="favorite-category" class="section-summary">—</p>
         </div>
@@ -127,8 +150,8 @@
         <article class="panel distribution-panel">
           <div class="panel-heading">
             <div>
-              <p class="section-kicker">All results</p>
-              <h2>Score distribution</h2>
+              <p class="section-kicker">Standard results</p>
+              <h2>Standard score distribution</h2>
             </div>
           </div>
           <div id="distribution-bars" class="distribution-bars"></div>
@@ -156,7 +179,7 @@
         <div class="table-wrap">
           <table>
             <thead>
-              <tr><th>When</th><th>Category</th><th>Score</th><th>First try</th><th>Second chance</th><th>Time</th></tr>
+              <tr><th>When</th><th>Mode</th><th>Category</th><th>Score</th><th>First try</th><th>Second chance</th><th>Time</th></tr>
             </thead>
             <tbody id="recent-results"></tbody>
           </table>

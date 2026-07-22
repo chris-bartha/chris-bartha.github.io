@@ -45,8 +45,19 @@
     <!-- HOME SCREEN -->
     <section id="screen-home" class="screen" hidden>
       <h1>Welcome to Quiz Time!</h1>
-      <p class="lead">Pick a quiz to play. Each round has 10 questions.</p>
-      <p class="variety-note">✨ Questions seen less often get a gentle boost, so every round stays fresh.</p>
+      <p class="lead">Pick a quiz to play. Standard rounds have 10 questions.</p>
+      <button id="unlimited-toggle" class="unlimited-toggle" type="button" aria-pressed="false">
+        <span class="unlimited-toggle-emoji" aria-hidden="true">😈</span>
+        <span class="unlimited-toggle-copy">
+          <span class="unlimited-toggle-heading">
+            <span>Unlimited Mode</span>
+            <span id="unlimited-toggle-state" class="unlimited-toggle-state">Off</span>
+          </span>
+          <span id="unlimited-toggle-description" class="unlimited-toggle-description">
+            Tap to keep playing until one question is missed twice.
+          </span>
+        </span>
+      </button>
       <div class="menu">
         <button class="big-btn menu-btn" type="button" data-category="history">
           <span class="menu-emoji" aria-hidden="true">🏛️</span>
@@ -80,7 +91,7 @@
           <span class="menu-emoji" aria-hidden="true">🎓</span>
           <span>
             <span class="menu-title">Are You Smarter Than a Fifth Grader?</span>
-            <span class="menu-sub">Climb from Grade 1 to Grade 5 with Peek, Copy, and Save</span>
+            <span id="fifth-menu-description" class="menu-sub">Climb from Grade 1 to Grade 5 with Peek, Copy, and Save</span>
           </span>
         </button>
       </div>

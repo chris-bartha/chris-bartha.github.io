@@ -71,6 +71,18 @@
     }).format(new Date(value));
   }
 
+  function fullDateTime(value, timezone) {
+    if (!value) return "Never";
+    return new Intl.DateTimeFormat(undefined, {
+      day: "numeric",
+      month: "short",
+      year: "numeric",
+      hour: "numeric",
+      minute: "2-digit",
+      timeZone: timezone || undefined
+    }).format(new Date(value));
+  }
+
   function timeWithSeconds(value, timezone) {
     if (!value) return "—";
     return new Intl.DateTimeFormat(undefined, {
@@ -102,19 +114,25 @@
   function renderHero(metrics) {
     var overview = metrics.overview;
     setText("total-quizzes", number(overview.total_quizzes));
-    setText("total-quizzes-note", plural(metrics.categories.filter(function (item) { return item.quizzes > 0; }).length, "active category", "active categories"));
+    setText("total-quizzes-note", "Standard rounds · Unlimited tracked separately");
     setText("quizzes-today", number(overview.quizzes_today));
-    setText("today-note", overview.quizzes_today ? "Completed in your local day" : "No quizzes yet today");
+    setText("today-note", overview.quizzes_today
+      ? number(overview.standard_today) + " standard · " + number(overview.unlimited_today) + " Unlimited"
+      : "No quizzes yet today");
     setText("average-score", percent(overview.average_percentage));
     document.getElementById("average-meter").style.width = Math.min(100, Number(overview.average_percentage) || 0) + "%";
-    setText("average-note", number(overview.total_correct) + " correct from " + number(overview.total_questions));
+    setText("average-note", number(overview.standard_total_correct) + " correct from " +
+      number(overview.standard_total_questions) + " standard questions");
     setText("perfect-scores", number(overview.perfect_scores));
-    setText("perfect-note", overview.total_quizzes ? percent(overview.perfect_scores * 100 / overview.total_quizzes) + " of all quizzes" : "No scores yet");
+    setText("perfect-note", overview.total_quizzes
+      ? percent(overview.perfect_scores * 100 / overview.total_quizzes) + " of standard quizzes"
+      : "No standard scores yet");
 
     setText("correct-answers", number(overview.total_correct));
-    setText("correct-answers-note", number(overview.total_questions) + " questions answered");
+    setText("correct-answers-note", number(overview.total_questions) + " questions · all modes");
     setText("second-chances", number(overview.second_chance_correct));
-    setText("second-chances-note", percent(overview.total_correct ? overview.second_chance_correct * 100 / overview.total_correct : 0) + " of correct answers");
+    setText("second-chances-note", percent(overview.total_correct ? overview.second_chance_correct * 100 / overview.total_correct : 0) + " of all correct answers");
+    setText("unlimited-runs", number(overview.unlimited_quizzes));
     setText("average-time", duration(overview.average_duration_seconds));
     setText("current-streak", plural(overview.current_streak, "day"));
     setText("streak-note", "Longest: " + plural(overview.longest_streak, "day"));
@@ -127,10 +145,45 @@
     document.getElementById("activity-chart").innerHTML = activity.map(function (day) {
       var height = day.quizzes ? Math.max(8, day.quizzes / max * 100) : 2;
       var className = day.quizzes ? "activity-bar" : "activity-bar zero";
-      var tip = dateOnly(day.date) + ": " + plural(day.quizzes, "quiz", "quizzes");
-      return '<span class="' + className + '" style="height:' + height + '%" data-tip="' + escapeHtml(tip) + '"></span>';
+      var standardShare = day.quizzes ? day.standard_quizzes / day.quizzes * 100 : 0;
+      var unlimitedShare = day.quizzes ? day.unlimited_quizzes / day.quizzes * 100 : 0;
+      var tip = dateOnly(day.date) + ": " + plural(day.quizzes, "session") +
+        " · " + number(day.standard_quizzes) + " standard · " +
+        number(day.unlimited_quizzes) + " Unlimited";
+      return '<span class="' + className + '" style="height:' + height + '%" data-tip="' + escapeHtml(tip) + '">' +
+        '<i class="activity-standard" style="height:' + standardShare + '%"></i>' +
+        '<i class="activity-unlimited" style="height:' + unlimitedShare + '%"></i></span>';
     }).join("");
     setText("chart-start", activity.length ? dateOnly(activity[0].date) : "30 days ago");
+  }
+
+  function renderUnlimited(metrics) {
+    var unlimited = metrics.unlimited || { runs: 0, best_score: 0, average_score: 0, second_chance_correct: 0, top_runs: [] };
+    var runs = Number(unlimited.runs) || 0;
+    setText("unlimited-run-count", number(runs));
+    setText("unlimited-best-score", runs ? number(unlimited.best_score) : "—");
+    setText("unlimited-average-score", runs ? number(unlimited.average_score) : "—");
+    setText("unlimited-second-chances", number(unlimited.second_chance_correct));
+    setText("unlimited-summary", runs
+      ? plural(runs, "run") + " · " + number(unlimited.total_correct) + " correct answers"
+      : "No Unlimited runs yet — the first record is waiting.");
+
+    var topRuns = unlimited.top_runs || [];
+    if (!topRuns.length) {
+      document.getElementById("unlimited-top-runs").innerHTML =
+        '<p class="empty-state unlimited-empty">Top scores will appear after the first Unlimited run.</p>';
+      return;
+    }
+
+    document.getElementById("unlimited-top-runs").innerHTML = topRuns.map(function (run, index) {
+      return '<article class="unlimited-record">' +
+        '<span class="unlimited-rank">#' + (index + 1) + '</span>' +
+        '<strong class="unlimited-score">' + number(run.score) + '</strong>' +
+        '<div class="unlimited-record-copy"><b>' + escapeHtml(run.category_name) + '</b>' +
+        '<span>' + escapeHtml(fullDateTime(run.completed_at, metrics.timezone)) + '</span></div>' +
+        '<div class="unlimited-record-detail"><span>' + number(run.second_try_correct) + ' second-chance</span>' +
+        '<span>' + duration(run.duration_seconds) + '</span></div></article>';
+    }).join("");
   }
 
   function renderScoreChoice(key) {
@@ -194,6 +247,9 @@
         '<div class="category-stats"><span>Average<b>' + percent(category.average_percentage) + '</b></span>' +
         '<span>Best<b>' + percent(category.best_percentage) + '</b></span>' +
         '<span>Perfect<b>' + number(category.perfect_scores) + '</b></span></div>' +
+        '<p class="category-unlimited">😈 ' + (category.unlimited_quizzes
+          ? plural(category.unlimited_quizzes, "Unlimited run") + ' · best ' + number(category.unlimited_best_score)
+          : 'No Unlimited runs') + '</p>' +
         '<p class="category-last">' + escapeHtml(last) + '</p></article>';
     }).join("");
   }
@@ -239,13 +295,17 @@
     var rows = metrics.recent_results || [];
     var tbody = document.getElementById("recent-results");
     if (!rows.length) {
-      tbody.innerHTML = '<tr><td colspan="6" class="empty-state">No completed quizzes yet.</td></tr>';
+      tbody.innerHTML = '<tr><td colspan="7" class="empty-state">No completed quizzes yet.</td></tr>';
       return;
     }
     tbody.innerHTML = rows.map(function (result) {
+      var unlimited = Boolean(result.is_unlimited);
+      var score = unlimited ? number(result.score) + " correct" : result.score + "/" + result.total_questions;
       return "<tr><td>" + escapeHtml(dateTime(result.completed_at, metrics.timezone)) + "</td>" +
+        '<td><span class="mode-badge ' + (unlimited ? "is-unlimited" : "") + '">' +
+          (unlimited ? "😈 Unlimited" : "Standard") + "</span></td>" +
         '<td><span class="table-category"><span>' + categoryIcon(result.category_id) + "</span>" + escapeHtml(result.category_name) + "</span></td>" +
-        '<td><span class="score-badge">' + escapeHtml(result.score + "/" + result.total_questions) + "</span></td>" +
+        '<td><span class="score-badge ' + (unlimited ? "is-unlimited" : "") + '">' + escapeHtml(score) + "</span></td>" +
         "<td>" + number(result.first_try_correct) + "</td>" +
         "<td>" + number(result.second_try_correct) + "</td>" +
         "<td>" + duration(result.duration_seconds) + "</td></tr>";
@@ -256,6 +316,7 @@
     currentMetrics = metrics;
     renderHero(metrics);
     renderActivity(metrics);
+    renderUnlimited(metrics);
     renderScorePicker(metrics);
     renderCategories(metrics);
     renderDistribution(metrics);

@@ -19,6 +19,12 @@ The fifth-grade challenge asks two questions from each grade, in order from Grad
 
 History, Geography, Mixed, and Hungarian quizzes keep the friendly second-chance rule from the original app.
 
+## Unlimited Mode
+
+The large **Unlimited Mode** control on the quiz menu turns History, Geography, Mixed, and Hungarian into sudden-death runs. Questions continue through the weighted category library until one question is answered incorrectly twice. The second chance remains available, and Fifth Grader is visibly unavailable until Unlimited Mode is turned off again.
+
+Unlimited results are stored in the same per-category result tables with `is_unlimited = true`; every result created before this feature is marked `false`. Standard quiz counts, averages, perfect scores, category performance, and score distribution remain standard-only. Daily activity, streaks, correct-answer totals, and second-chance totals include both modes. Unlimited runs also have separate counts, category records, and a dated top-three leaderboard.
+
 ## Accessibility
 
 - Atkinson Hyperlegible with full Hungarian character support
@@ -38,7 +44,7 @@ Questions are stored in `quiz_questions`; the original local JavaScript question
 - `supabase/migrations/20260721214305_initial_quiz_schema.sql`
 - `supabase/seed.sql`
 
-Each question also keeps global `times_shown`, `times_answered`, and `times_correct` counters. Round selection uses gentle weighted randomness: questions with fewer views have a better chance of appearing, but no active question is excluded. `quiz_question_stats_dashboard` provides an admin-friendly view of those counters and per-question accuracy.
+Each question also keeps global `times_shown`, `times_answered`, and `times_correct` counters. Round selection uses gentle weighted randomness: questions with fewer views have a better chance of appearing, but no active question is excluded. A view is recorded only when the question actually reaches the screen, which keeps long Unlimited runs from counting unseen questions. `quiz_question_stats_dashboard` provides an admin-friendly view of those counters and per-question accuracy.
 
 Completed scores are deliberately separated by quiz:
 
@@ -54,7 +60,7 @@ The browser signs in with Supabase Anonymous Auth. Row Level Security allows pla
 
 ## Metrics dashboard
 
-Visit `/metrics` for the dark, owner-facing activity dashboard. It shows all-time and daily totals, category performance, score distribution, streaks, timing, second-chance points, a 30-day activity graph, and the latest sessions. It always starts with a fresh database request, refreshes every 15 seconds while visible, and refreshes immediately when you return to a stale tab.
+Visit `/metrics` for the dark, owner-facing activity dashboard. It shows standard quiz performance, combined daily activity, streaks, timing, second-chance points, separate Unlimited Mode records, a dated top-three leaderboard, a 30-day standard/Unlimited activity graph, and the latest sessions. It always starts with a fresh database request, refreshes every 15 seconds while visible, and refreshes immediately when you return to a stale tab.
 
 The dashboard code and database request are isolated to the `/metrics` directory. Visiting the main quiz page does not download the dashboard assets or request its statistics.
 

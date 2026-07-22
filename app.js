@@ -45,6 +45,11 @@
   var saveIndicator = document.getElementById("save-indicator");
   var helpStatusEl = document.getElementById("help-status");
   var menuBtns = document.querySelectorAll(".menu-btn");
+  var unlimitedToggle = document.getElementById("unlimited-toggle");
+  var unlimitedToggleState = document.getElementById("unlimited-toggle-state");
+  var unlimitedToggleDescription = document.getElementById("unlimited-toggle-description");
+  var fifthMenuBtn = document.querySelector('.menu-btn[data-category="fifth_grader"]');
+  var fifthMenuDescription = document.getElementById("fifth-menu-description");
 
   var state = {
     category: "mix",
@@ -61,6 +66,8 @@
     fontStep: 1,
     voiceOn: false,
     loading: false,
+    unlimited: false,
+    unlimitedEnded: false,
     classmateAnswer: null,
     answerViaCopy: false,
     lifelines: {
@@ -97,6 +104,22 @@
       shareHelp: "Opens your sharing menu with a ready-to-send message.",
       shareReady: "Your score is ready to send.",
       score: function (score, total) { return "You got " + score + " out of " + total + " right."; },
+      unlimitedProgress: function (i, score) {
+        return "Unlimited Mode  •  Question " + i + "  •  Score: " + score;
+      },
+      unlimitedMeta: "😈 Unlimited Mode — a second miss ends the run",
+      unlimitedReveal: function (answer) {
+        return "😈 That ends this Unlimited run. The answer is: " + answer;
+      },
+      unlimitedRevealSpoken: function (answer) {
+        return "That ends this Unlimited run. The answer is " + answer;
+      },
+      unlimitedSeeResult: "See my Unlimited score ➜",
+      unlimitedScore: function (score, attempted, cleared) {
+        if (cleared) return "Amazing — you cleared every question with " + score + " correct!";
+        return "You answered " + score + " correctly before the run ended. " +
+          attempted + (attempted === 1 ? " question" : " questions") + " attempted.";
+      },
       titles: ["Perfect score!", "Excellent!", "Well done!", "Good effort!", "Nice try — play again!"]
     },
     hu: {
@@ -124,6 +147,21 @@
       shareHelp: "Megnyitja a megosztást egy elkészített üzenettel.",
       shareReady: "Az üzenet elkészült.",
       score: function (score, total) { return total + " kérdésből " + score + " helyes válaszod volt."; },
+      unlimitedProgress: function (i, score) {
+        return "Korlátlan mód  •  " + i + ". kérdés  •  Pontszám: " + score;
+      },
+      unlimitedMeta: "😈 Korlátlan mód — a második hibás válasz véget vet a játéknak",
+      unlimitedReveal: function (answer) {
+        return "😈 A korlátlan játéknak vége. A helyes válasz: " + answer;
+      },
+      unlimitedRevealSpoken: function (answer) {
+        return "A korlátlan játéknak vége. A helyes válasz " + answer;
+      },
+      unlimitedSeeResult: "Mutasd a korlátlan eredményt ➜",
+      unlimitedScore: function (score, attempted, cleared) {
+        if (cleared) return "Csodálatos — minden kérdésre helyesen válaszoltál! Pontszám: " + score + ".";
+        return score + " helyes válaszod volt, mielőtt a játék véget ért. Megválaszolt kérdések: " + attempted + ".";
+      },
       titles: ["Hibátlan! Csodálatos!", "Kiváló!", "Szép munka!", "Jó próbálkozás!", "Ne add fel — próbáld újra!"]
     }
   };
@@ -180,8 +218,31 @@
   }
 
   function setMenuBusy(busy) {
-    for (var i = 0; i < menuBtns.length; i++) menuBtns[i].disabled = busy;
+    for (var i = 0; i < menuBtns.length; i++) {
+      var unavailable = state.unlimited && menuBtns[i].dataset.category === "fifth_grader";
+      menuBtns[i].disabled = busy || unavailable;
+      menuBtns[i].classList.toggle("mode-unavailable", unavailable);
+    }
   }
+
+  function applyUnlimitedMode(enabled) {
+    state.unlimited = Boolean(enabled);
+    state.unlimitedEnded = false;
+    unlimitedToggle.setAttribute("aria-pressed", String(state.unlimited));
+    unlimitedToggleState.textContent = state.unlimited ? "On" : "Off";
+    unlimitedToggleDescription.textContent = state.unlimited
+      ? "Keep going until one question is missed twice. Second chances stay on."
+      : "Tap to keep playing until one question is missed twice.";
+    fifthMenuDescription.textContent = state.unlimited
+      ? "Unavailable in Unlimited Mode — turn it off to play"
+      : "Climb from Grade 1 to Grade 5 with Peek, Copy, and Save";
+    fifthMenuBtn.setAttribute("aria-disabled", String(state.unlimited));
+    setMenuBusy(state.loading);
+  }
+
+  unlimitedToggle.addEventListener("click", function () {
+    applyUnlimitedMode(!state.unlimited);
+  });
 
   function showError(error) {
     errorMessageEl.textContent = error && error.message
@@ -304,28 +365,30 @@
     return round;
   }
 
-  function rememberRoundViews(round) {
-    round.forEach(function (question) {
-      question.timesShown = (question.timesShown || 0) + 1;
-    });
-
-    window.QuizBackend.recordQuestionViews(round).catch(function (error) {
+  function rememberQuestionView(question) {
+    question.timesShown = (question.timesShown || 0) + 1;
+    window.QuizBackend.recordQuestionViews([question]).catch(function (error) {
       console.error("Question variety tracking failed:", error);
     });
   }
 
   async function startRound(category) {
     if (state.loading) return;
+    if (state.unlimited && category === "fifth_grader") return;
     state.loading = true;
     setMenuBusy(true);
     show("loading");
 
     try {
       var pool = await window.QuizBackend.loadQuestions(category);
-      if (pool.length < ROUND_LENGTH) throw new Error("There are not enough questions in this quiz yet.");
+      if ((!state.unlimited && pool.length < ROUND_LENGTH) || pool.length < 1) {
+        throw new Error("There are not enough questions in this quiz yet.");
+      }
 
       state.category = category;
-      state.round = category === "fifth_grader"
+      state.round = state.unlimited
+        ? weightedSample(pool, pool.length)
+        : category === "fifth_grader"
         ? buildFifthGradeRound(pool)
         : weightedSample(pool, ROUND_LENGTH);
       state.index = 0;
@@ -334,13 +397,16 @@
       state.secondTryCorrect = 0;
       state.answers = [];
       state.startedAt = new Date().toISOString();
+      state.unlimitedEnded = false;
       state.lifelines = { peek: false, copy: false, save: false, saveSucceeded: false };
-      rememberRoundViews(state.round);
 
       applyLocale();
       barEl.innerHTML = "";
-      for (var i = 0; i < state.round.length; i++) {
-        barEl.appendChild(document.createElement("span"));
+      barEl.hidden = state.unlimited;
+      if (!state.unlimited) {
+        for (var i = 0; i < state.round.length; i++) {
+          barEl.appendChild(document.createElement("span"));
+        }
       }
       show("quiz");
       renderQuestion();
@@ -353,6 +419,7 @@
   }
 
   function updateBar(doneCount) {
+    if (barEl.hidden) return;
     var segments = barEl.children;
     for (var i = 0; i < segments.length; i++) {
       segments[i].className = i < doneCount ? "done" : "";
@@ -361,6 +428,7 @@
 
   function progressText() {
     var question = state.round[state.index];
+    if (state.unlimited) return L().unlimitedProgress(state.index + 1, state.score);
     if (state.category === "fifth_grader") {
       return "Grade " + question.grade + "  •  Question " + (state.index + 1) +
         " of " + state.round.length + "  •  Score: " + state.score;
@@ -397,6 +465,7 @@
     state.currentSelections = [];
     state.answerViaCopy = false;
     updateBar(state.index);
+    rememberQuestionView(question);
 
     progressEl.textContent = progressText();
     questionEl.textContent = question.q;
@@ -412,6 +481,11 @@
       helpStatusEl.textContent = state.lifelines.save
         ? "Your automatic Save has already been used."
         : "Your classmate is ready to help.";
+    } else if (state.unlimited) {
+      questionMetaEl.hidden = false;
+      questionMetaEl.textContent = L().unlimitedMeta;
+      state.classmateAnswer = null;
+      helpStatusEl.textContent = "";
     } else {
       questionMetaEl.hidden = true;
       questionMetaEl.textContent = "";
@@ -500,8 +574,10 @@
     logAnswer(correct, outcome);
     progressEl.textContent = progressText();
 
-    var last = state.index === state.round.length - 1;
-    nextBtn.textContent = last ? L().seeResult : L().next;
+    var last = state.unlimitedEnded || state.index === state.round.length - 1;
+    nextBtn.textContent = state.unlimitedEnded
+      ? L().unlimitedSeeResult
+      : last ? L().seeResult : L().next;
     nextBtn.hidden = false;
     updateHelpPanel();
     nextBtn.focus();
@@ -533,10 +609,17 @@
     }
 
     var question = state.round[state.index];
-    feedbackEl.textContent = strings.reveal(question.a);
+    if (state.unlimited) state.unlimitedEnded = true;
+    feedbackEl.textContent = state.unlimited
+      ? strings.unlimitedReveal(question.a)
+      : strings.reveal(question.a);
     feedbackEl.className = "feedback bad";
     finishQuestion(chosenButton, false, "incorrect");
-    if (state.voiceOn) speak(strings.revealSpoken(question.a));
+    if (state.voiceOn) {
+      speak(state.unlimited
+        ? strings.unlimitedRevealSpoken(question.a)
+        : strings.revealSpoken(question.a));
+    }
   }
 
   function fifthGradeAnswer(chosenButton, isRight) {
@@ -604,7 +687,7 @@
   });
 
   nextBtn.addEventListener("click", function () {
-    if (state.index < state.round.length - 1) {
+    if (!state.unlimitedEnded && state.index < state.round.length - 1) {
       state.index++;
       renderQuestion();
     } else {
@@ -633,9 +716,10 @@
 
     return {
       score: state.score,
-      totalQuestions: state.round.length,
+      totalQuestions: state.answers.length,
       firstTryCorrect: state.firstTryCorrect,
       secondTryCorrect: state.secondTryCorrect,
+      isUnlimited: state.unlimited,
       startedAt: state.startedAt,
       durationSeconds: duration,
       answers: state.answers,
@@ -655,7 +739,12 @@
       secondChanceText = state.secondTryCorrect + " points came from second chances.";
     }
 
-    return "I scored " + state.score + " out of " + state.round.length +
+    if (state.unlimited) {
+      return "I scored " + state.score + " on the " + categoryName +
+        " quiz in Unlimited Mode! " + secondChanceText + " 😈";
+    }
+
+    return "I scored " + state.score + " out of " + state.answers.length +
       " on the " + categoryName + " quiz! " + secondChanceText + " 😊";
   }
 
@@ -682,12 +771,17 @@
   });
 
   function showResults() {
-    var total = state.round.length;
+    var total = state.answers.length;
     var score = state.score;
     var strings = L();
     var emoji;
     var title;
-    if (score === total) { emoji = "🌟🌟🌟"; title = strings.titles[0]; }
+    var clearedUnlimited = state.unlimited && !state.unlimitedEnded && state.index === state.round.length - 1;
+    if (state.unlimited) {
+      emoji = clearedUnlimited ? "😈🏆" : "😈";
+      title = clearedUnlimited ? "Unlimited Mode conquered!" : "Unlimited run complete!";
+    }
+    else if (score === total) { emoji = "🌟🌟🌟"; title = strings.titles[0]; }
     else if (score >= total * 0.8) { emoji = "🎉"; title = strings.titles[1]; }
     else if (score >= total * 0.6) { emoji = "😊"; title = strings.titles[2]; }
     else if (score >= total * 0.4) { emoji = "👍"; title = strings.titles[3]; }
@@ -695,11 +789,17 @@
 
     resultEmoji.textContent = emoji;
     resultTitle.textContent = title;
-    resultScore.textContent = strings.score(score, total);
+    resultScore.textContent = state.unlimited
+      ? strings.unlimitedScore(score, total, clearedUnlimited)
+      : strings.score(score, total);
     shareStatusEl.textContent = strings.shareHelp;
     show("results");
     resultTitle.focus();
-    if (state.voiceOn) speak(title + " " + strings.score(score, total));
+    if (state.voiceOn) {
+      speak(title + " " + (state.unlimited
+        ? strings.unlimitedScore(score, total, clearedUnlimited)
+        : strings.score(score, total)));
+    }
 
     window.QuizBackend.recordResult(state.category, resultPayload()).catch(function (error) {
       console.error("Quiz score tracking failed:", error);
@@ -740,7 +840,12 @@
     try {
       await window.QuizBackend.initialize();
       show("home");
-      document.querySelector(".menu-btn").focus();
+      try {
+        unlimitedToggle.focus({ preventScroll: true });
+      } catch (error) {
+        unlimitedToggle.focus();
+      }
+      window.scrollTo(0, 0);
     } catch (error) {
       showError(error);
     }
@@ -756,5 +861,6 @@
   applyTheme(load("quiz-theme") === "dark" ? "dark" : "light");
   state.voiceOn = load("quiz-voice") === "on";
   applyVoice();
+  applyUnlimitedMode(false);
   initializeApp();
 })();
