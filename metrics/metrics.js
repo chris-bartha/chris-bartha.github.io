@@ -8,6 +8,7 @@
     geography: "◉",
     mix: "✦",
     hungarian: "◆",
+    textbook_history: "▣",
     fifth_grader: "🎓"
   };
   var CATEGORY_COLORS = {
@@ -15,6 +16,7 @@
     geography: "#53e0ce",
     mix: "#a78bfa",
     hungarian: "#f472b6",
+    textbook_history: "#fb923c",
     fifth_grader: "#f4c95d"
   };
 
@@ -113,8 +115,8 @@
 
   function renderHero(metrics) {
     var overview = metrics.overview;
-    setText("total-quizzes", number(overview.total_quizzes));
-    setText("total-quizzes-note", "Standard rounds · Unlimited tracked separately");
+    setText("total-quizzes", number(overview.total_sessions));
+    setText("total-quizzes-note", "All completed quizzes · Standard + Unlimited");
     setText("quizzes-today", number(overview.quizzes_today));
     setText("today-note", overview.quizzes_today
       ? number(overview.standard_today) + " standard · " + number(overview.unlimited_today) + " Unlimited"

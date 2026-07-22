@@ -13,6 +13,7 @@
     geography: "Geography",
     mix: "History and Geography",
     hungarian: "History in Hungarian",
+    textbook_history: "Tankönyvi történelem",
     fifth_grader: "Are You Smarter Than a Fifth Grader?"
   };
 
@@ -167,7 +168,7 @@
   };
 
   function locale() {
-    return state.category === "hungarian" ? "hu" : "en";
+    return state.category === "hungarian" || state.category === "textbook_history" ? "hu" : "en";
   }
 
   function L() {

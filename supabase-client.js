@@ -7,6 +7,7 @@
     geography: "geography_quiz_results",
     mix: "mixed_quiz_results",
     hungarian: "hungarian_quiz_results",
+    textbook_history: "textbook_history_quiz_results",
     fifth_grader: "fifth_grader_quiz_results"
   };
   var client = null;
