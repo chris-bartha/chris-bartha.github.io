@@ -9,6 +9,7 @@
     mix: "✦",
     hungarian: "◆",
     textbook_history: "▣",
+    time_traveler: "⌛",
     fifth_grader: "🎓"
   };
   var CATEGORY_COLORS = {
@@ -17,6 +18,7 @@
     mix: "#a78bfa",
     hungarian: "#f472b6",
     textbook_history: "#fb923c",
+    time_traveler: "#a3e635",
     fifth_grader: "#f4c95d"
   };
 

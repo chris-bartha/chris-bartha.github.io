@@ -13,6 +13,7 @@
     geography: "Geography",
     hungarian: "History in Hungarian",
     textbook_history: "Tankönyvi történelem",
+    time_traveler: "Time Traveler",
     fifth_grader: "Are You Smarter Than a Fifth Grader?"
   };
 
