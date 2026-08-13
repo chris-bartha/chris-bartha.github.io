@@ -4,9 +4,9 @@ An accessible, large-print quiz game made for Mom. The app now loads its questio
 
 ## Quiz library
 
-The Supabase database contains **1,925 unique questions**:
+The Supabase database contains **2,525 unique questions**:
 
-- 430 History questions
+- 1,030 History questions
 - 415 Geography questions
 - 430 Hungarian-language history questions
 - 300 Hungarian “Tankönyvi történelem” questions inspired by the school curriculum encountered by students born around 1964
@@ -47,6 +47,7 @@ Questions are stored in `quiz_questions`; the original local JavaScript question
 - `supabase/migrations/20260722071433_textbook_history.sql`
 - `supabase/migrations/20260722073720_textbook_history_cold_war_balance.sql`
 - `supabase/migrations/20260723165822_add_time_traveler_quiz.sql`
+- `supabase/migrations/20260813063547_add_history_question_expansion.sql`
 - `supabase/seed.sql`
 
 Each question also keeps global `times_shown`, `times_answered`, and `times_correct` counters. Round selection uses gentle weighted randomness: questions with fewer views have a better chance of appearing, but no active question is excluded. A view is recorded only when the question actually reaches the screen, which keeps long Unlimited runs from counting unseen questions. `quiz_question_stats_dashboard` provides an admin-friendly view of those counters and per-question accuracy.
