@@ -8,6 +8,7 @@
     hungarian: "hungarian_quiz_results",
     textbook_history: "textbook_history_quiz_results",
     time_traveler: "time_traveler_quiz_results",
+    tricky_true_false: "tricky_true_false_quiz_results",
     fifth_grader: "fifth_grader_quiz_results"
   };
   var client = null;

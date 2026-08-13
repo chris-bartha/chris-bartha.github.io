@@ -10,6 +10,7 @@
     hungarian: "◆",
     textbook_history: "▣",
     time_traveler: "⌛",
+    tricky_true_false: "⚖",
     fifth_grader: "🎓"
   };
   var CATEGORY_COLORS = {
@@ -19,6 +20,7 @@
     hungarian: "#f472b6",
     textbook_history: "#fb923c",
     time_traveler: "#a3e635",
+    tricky_true_false: "#fb7185",
     fifth_grader: "#f4c95d"
   };
 

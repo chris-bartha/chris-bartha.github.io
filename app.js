@@ -14,8 +14,13 @@
     hungarian: "History in Hungarian",
     textbook_history: "Tankönyvi történelem",
     time_traveler: "Time Traveler",
+    tricky_true_false: "Tricky True or False",
     fifth_grader: "Are You Smarter Than a Fifth Grader?"
   };
+
+  /* True/false rounds offer two choices, so a second chance would simply hand
+     over the answer. These categories get one attempt per question instead. */
+  var TRUE_FALSE_CATEGORIES = { tricky_true_false: true };
 
   var screens = {
     loading: document.getElementById("screen-loading"),
@@ -51,6 +56,7 @@
   var unlimitedToggleDescription = document.getElementById("unlimited-toggle-description");
   var fifthMenuBtn = document.querySelector('.menu-btn[data-category="fifth_grader"]');
   var fifthMenuDescription = document.getElementById("fifth-menu-description");
+  var trickyMenuDescription = document.getElementById("tricky-menu-description");
 
   var state = {
     category: "textbook_history",
@@ -98,7 +104,11 @@
       seeResult: "See my result ➜",
       read: "🔊 Read this question",
       quit: "Stop and go back to the menu",
-      kbHint: "Tip: you can press 1, 2, 3 or 4 on your keyboard to answer.",
+      kbHint: "Tip: you can press <strong>1, 2, 3 or 4</strong> on your keyboard to answer.",
+      kbHintTwo: "Tip: you can press <strong>1 or 2</strong> on your keyboard to answer.",
+      singleAttemptMeta: "⚠️ One try only — no second chances",
+      unlimitedSingleAttemptMeta: "😈 Unlimited Mode — one try each, a single miss ends the run",
+      shareNoSecondChances: "One try per question — no second chances.",
       again: "🔁 Play again",
       home: "🏠 Back to the menu",
       share: "💬 Text my score",
@@ -141,7 +151,11 @@
       seeResult: "Mutasd az eredményt ➜",
       read: "🔊 Olvasd fel a kérdést",
       quit: "Megállok, vissza a menübe",
-      kbHint: "Tipp: a billentyűzeten az 1, 2, 3 vagy 4 gombbal is válaszolhatsz.",
+      kbHint: "Tipp: a billentyűzeten az <strong>1, 2, 3 vagy 4</strong> gombbal is válaszolhatsz.",
+      kbHintTwo: "Tipp: a billentyűzeten az <strong>1 vagy 2</strong> gombbal is válaszolhatsz.",
+      singleAttemptMeta: "⚠️ Csak egy próbálkozás — nincs második esély",
+      unlimitedSingleAttemptMeta: "😈 Korlátlan mód — egy próbálkozás, egyetlen hiba véget vet a játéknak",
+      shareNoSecondChances: "Egy próbálkozás kérdésenként — nincs második esély.",
       again: "🔁 Játszom még egyszer",
       home: "🏠 Vissza a menübe",
       share: "💬 Elküldöm az eredményt",
@@ -169,6 +183,10 @@
 
   function locale() {
     return state.category === "hungarian" || state.category === "textbook_history" ? "hu" : "en";
+  }
+
+  function isTrueFalse() {
+    return Boolean(TRUE_FALSE_CATEGORIES[state.category]);
   }
 
   function L() {
@@ -237,6 +255,11 @@
     fifthMenuDescription.textContent = state.unlimited
       ? "Unavailable in Unlimited Mode — turn it off to play"
       : "Climb from Grade 1 to Grade 5 with Peek, Copy, and Save";
+    /* This quiz never had second chances, so in Unlimited Mode the very first
+       miss ends the run rather than the second. */
+    trickyMenuDescription.textContent = state.unlimited
+      ? "One try each — a single miss ends the run"
+      : "The obvious answer is often wrong — one try each, no second chances";
     fifthMenuBtn.setAttribute("aria-disabled", String(state.unlimited));
     setMenuBusy(state.loading);
   }
@@ -346,7 +369,7 @@
     var strings = L();
     readBtn.textContent = strings.read;
     quitBtn.textContent = strings.quit;
-    document.getElementById("kb-hint").innerHTML = strings.kbHint.replace("1, 2, 3", "<strong>1, 2, 3</strong>");
+    document.getElementById("kb-hint").innerHTML = isTrueFalse() ? strings.kbHintTwo : strings.kbHint;
     document.getElementById("again-btn").textContent = strings.again;
     document.getElementById("home-btn").textContent = strings.home;
     shareBtn.textContent = strings.share;
@@ -482,9 +505,11 @@
       helpStatusEl.textContent = state.lifelines.save
         ? "Your automatic Save has already been used."
         : "Your classmate is ready to help.";
-    } else if (state.unlimited) {
+    } else if (state.unlimited || isTrueFalse()) {
       questionMetaEl.hidden = false;
-      questionMetaEl.textContent = L().unlimitedMeta;
+      questionMetaEl.textContent = state.unlimited
+        ? (isTrueFalse() ? L().unlimitedSingleAttemptMeta : L().unlimitedMeta)
+        : L().singleAttemptMeta;
       state.classmateAnswer = null;
       helpStatusEl.textContent = "";
     } else {
@@ -599,7 +624,9 @@
     }
 
     state.attempts++;
-    if (state.attempts === 1) {
+    /* A true/false round has only two choices, so the reveal comes straight
+       away — a second chance would leave just the correct answer standing. */
+    if (state.attempts === 1 && !isTrueFalse()) {
       chosenButton.disabled = true;
       chosenButton.classList.add("is-wrong");
       chosenButton.querySelector(".option-badge").textContent = "✗";
@@ -732,7 +759,9 @@
     var categoryName = CATEGORY_NAMES[state.category] || "Quiz Time";
     var secondChanceText;
 
-    if (state.secondTryCorrect === 0) {
+    if (isTrueFalse()) {
+      secondChanceText = L().shareNoSecondChances;
+    } else if (state.secondTryCorrect === 0) {
       secondChanceText = "No points came from second chances.";
     } else if (state.secondTryCorrect === 1) {
       secondChanceText = "1 point came from a second chance.";

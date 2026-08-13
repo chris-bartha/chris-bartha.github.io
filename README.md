@@ -4,13 +4,14 @@ An accessible, large-print quiz game made for Mom. The app now loads its questio
 
 ## Quiz library
 
-The Supabase database contains **2,525 unique questions**:
+The Supabase database contains **2,825 unique questions**:
 
 - 1,030 History questions
 - 415 Geography questions
 - 430 Hungarian-language history questions
 - 300 Hungarian “Tankönyvi történelem” questions inspired by the school curriculum encountered by students born around 1964
 - 275 “Time Traveler” questions about everyday life, food, clothing, inventions, culture, medicine, travel, and discovery across history
+- 300 “Tricky True or False” statements where the obvious answer is often the wrong one
 - 75 “Are You Smarter Than a Fifth Grader?” questions, with 15 questions at each grade level
 
 The fifth-grade challenge asks two questions from each grade, in order from Grade 1 through Grade 5. It simulates the show’s three classmate helps:
@@ -21,9 +22,15 @@ The fifth-grade challenge asks two questions from each grade, in order from Grad
 
 History, Geography, Hungarian, Textbook History, and Time Traveler quizzes keep the friendly second-chance rule from the original app.
 
+## Tricky True or False
+
+Every statement in this category is written so the obvious answer is often the wrong one — common misconceptions alongside surprising facts, rather than technicality traps. Each round offers two choices, **True** and **False**, and the library stays close to an even split between them so guessing gains nothing.
+
+This is the one category with **no second chances**. Two choices plus a second try would simply hand over the answer, so a miss reveals the answer immediately. The quiz screen states the rule on a badge, the keyboard hint narrows to **1** or **2**, and `second_try_correct` is always zero — enforced in the database by a check constraint, not only in the browser. In Unlimited Mode this makes the category true sudden death: the very first miss ends the run.
+
 ## Unlimited Mode
 
-The large **Unlimited Mode** control on the quiz menu turns History, Geography, Hungarian, Textbook History, and Time Traveler into sudden-death runs. Questions continue through the weighted category library until one question is answered incorrectly twice. The second chance remains available, and Fifth Grader is visibly unavailable until Unlimited Mode is turned off again.
+The large **Unlimited Mode** control on the quiz menu turns History, Geography, Hungarian, Textbook History, Time Traveler, and Tricky True or False into sudden-death runs. Questions continue through the weighted category library until one question is answered incorrectly twice. The second chance remains available in every category except Tricky True or False, which has none, so there a single miss ends the run. Fifth Grader is visibly unavailable until Unlimited Mode is turned off again.
 
 Unlimited results are stored in the same per-category result tables with `is_unlimited = true`; every result created before this feature is marked `false`. Standard quiz counts, averages, perfect scores, category performance, and score distribution remain standard-only. Daily activity, streaks, correct-answer totals, and second-chance totals include both modes. Unlimited runs also have separate counts, category records, and a dated top-three leaderboard.
 
@@ -34,7 +41,7 @@ Unlimited results are stored in the same per-category result tables with `is_unl
 - A−/A+ text scaling
 - Light and dark themes
 - Optional English or Hungarian speech
-- Keyboard shortcuts 1–4 for answer choices
+- Keyboard shortcuts 1–4 for answer choices, narrowing to 1–2 in Tricky True or False
 - High contrast, strong focus rings, and answer states that do not rely on color alone
 - No required typing or recurring sign-in
 - A large results-only share button that prepares a plain-text score message
@@ -48,6 +55,8 @@ Questions are stored in `quiz_questions`; the original local JavaScript question
 - `supabase/migrations/20260722073720_textbook_history_cold_war_balance.sql`
 - `supabase/migrations/20260723165822_add_time_traveler_quiz.sql`
 - `supabase/migrations/20260813063547_add_history_question_expansion.sql`
+- `supabase/migrations/20260813071131_add_tricky_true_false_quiz_schema.sql`
+- `supabase/migrations/20260813071333_add_tricky_true_false_questions.sql`
 - `supabase/seed.sql`
 
 Each question also keeps global `times_shown`, `times_answered`, and `times_correct` counters. Round selection uses gentle weighted randomness: questions with fewer views have a better chance of appearing, but no active question is excluded. A view is recorded only when the question actually reaches the screen, which keeps long Unlimited runs from counting unseen questions. `quiz_question_stats_dashboard` provides an admin-friendly view of those counters and per-question accuracy.
@@ -59,6 +68,7 @@ Completed scores are deliberately separated by quiz:
 - `hungarian_quiz_results`
 - `textbook_history_quiz_results`
 - `time_traveler_quiz_results`
+- `tricky_true_false_quiz_results`
 - `fifth_grader_quiz_results`
 
 The retired `mixed_quiz_results` table is kept only so its historical score remains intact; no new mixed quizzes are offered.
