@@ -4,14 +4,14 @@ An accessible, large-print quiz game made for Mom. The app now loads its questio
 
 ## Quiz library
 
-The Supabase database contains **2,825 unique questions**:
+The Supabase database contains **2,826 unique questions**:
 
 - 1,030 History questions
 - 415 Geography questions
 - 430 Hungarian-language history questions
 - 300 Hungarian “Tankönyvi történelem” questions inspired by the school curriculum encountered by students born around 1964
 - 275 “Time Traveler” questions about everyday life, food, clothing, inventions, culture, medicine, travel, and discovery across history
-- 300 “Tricky True or False” statements where the obvious answer is often the wrong one
+- 301 “Tricky True or False” statements where the obvious answer is often the wrong one
 - 75 “Are You Smarter Than a Fifth Grader?” questions, with 15 questions at each grade level
 
 The fifth-grade challenge asks two questions from each grade, in order from Grade 1 through Grade 5. It simulates the show’s three classmate helps:
@@ -57,6 +57,7 @@ Questions are stored in `quiz_questions`; the original local JavaScript question
 - `supabase/migrations/20260813063547_add_history_question_expansion.sql`
 - `supabase/migrations/20260813071131_add_tricky_true_false_quiz_schema.sql`
 - `supabase/migrations/20260813071333_add_tricky_true_false_questions.sql`
+- `supabase/migrations/20260813074229_add_tricky_true_false_sharks_question.sql`
 - `supabase/seed.sql`
 
 Each question also keeps global `times_shown`, `times_answered`, and `times_correct` counters. Round selection uses gentle weighted randomness: questions with fewer views have a better chance of appearing, but no active question is excluded. A view is recorded only when the question actually reaches the screen, which keeps long Unlimited runs from counting unseen questions. `quiz_question_stats_dashboard` provides an admin-friendly view of those counters and per-question accuracy.
