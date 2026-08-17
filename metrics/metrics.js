@@ -11,6 +11,7 @@
     textbook_history: "▣",
     time_traveler: "⌛",
     tricky_true_false: "⚖",
+    psychology: "💭",
     fifth_grader: "🎓"
   };
   var CATEGORY_COLORS = {
@@ -21,6 +22,7 @@
     textbook_history: "#fb923c",
     time_traveler: "#a3e635",
     tricky_true_false: "#fb7185",
+    psychology: "#e879f9",
     fifth_grader: "#f4c95d"
   };
 

@@ -15,6 +15,7 @@
     textbook_history: "Tankönyvi történelem",
     time_traveler: "Time Traveler",
     tricky_true_false: "Tricky True or False",
+    psychology: "Psychology",
     fifth_grader: "Are You Smarter Than a Fifth Grader?"
   };
 
