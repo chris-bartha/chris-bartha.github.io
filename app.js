@@ -524,6 +524,13 @@
 
   async function startRound(category) {
     if (state.loading) return;
+    /* A menu button that opens a submenu has no category. Reaching here with
+       one would load an empty pool and show "there are not enough questions",
+       which is both alarming and untrue -- do nothing instead. */
+    if (!category || !CATEGORY_NAMES[category]) {
+      console.error("startRound called without a real category:", category);
+      return;
+    }
     if (state.unlimited && category === "fifth_grader") return;
     state.loading = true;
     setMenuBusy(true);

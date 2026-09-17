@@ -9,7 +9,11 @@
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>">
   <link rel="preload" href="fonts/atkinson-regular.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="fonts/atkinson-bold.woff2" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="style.css">
+  <!-- GitHub Pages serves everything with cache-control: max-age=600, so a
+       freshly fetched index.html can pair with a ten-minute-old app.js and the
+       two disagree. Bump ?v= on every deploy that changes a script or the
+       stylesheet; index.html is the only file that then needs to refresh. -->
+  <link rel="stylesheet" href="style.css?v=20260917a">
 </head>
 <body>
 
@@ -251,9 +255,9 @@
     <p>Made with ❤️ for Mom</p>
   </footer>
 
-  <script src="config.js"></script>
+  <script src="config.js?v=20260917a"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.106.2/dist/umd/supabase.js"></script>
-  <script src="supabase-client.js"></script>
-  <script src="app.js"></script>
+  <script src="supabase-client.js?v=20260917a"></script>
+  <script src="app.js?v=20260917a"></script>
 </body>
 </html>
