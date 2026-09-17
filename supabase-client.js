@@ -6,7 +6,14 @@
     history: "history_quiz_results",
     geography: "geography_quiz_results",
     hungarian: "hungarian_quiz_results",
-    textbook_history: "textbook_history_quiz_results",
+    magyar_foldrajz: "magyar_foldrajz_quiz_results",
+    foldrajz_magyarul: "foldrajz_magyarul_quiz_results",
+    magyar_irodalom: "magyar_irodalom_quiz_results",
+    magyar_tudomany: "magyar_tudomany_quiz_results",
+    magyar_nepmesek: "magyar_nepmesek_quiz_results",
+    magyar_konyha: "magyar_konyha_quiz_results",
+    magyar_zene: "magyar_zene_quiz_results",
+    regen_volt: "regen_volt_quiz_results",
     time_traveler: "time_traveler_quiz_results",
     tricky_true_false: "tricky_true_false_quiz_results",
     psychology: "psychology_quiz_results",
@@ -108,7 +115,8 @@
       subject: row.subject,
       timesShown: Number(row.times_shown) || 0,
       timesAnswered: Number(row.times_answered) || 0,
-      timesCorrect: Number(row.times_correct) || 0
+      timesCorrect: Number(row.times_correct) || 0,
+      lastAnsweredAt: row.last_answered_at || null
     };
   }
 
@@ -118,7 +126,7 @@
 
     var result = await client
       .from("quiz_questions")
-      .select("id, category_id, prompt, correct_answer, wrong_answers, grade_level, subject, times_shown, times_answered, times_correct")
+      .select("id, category_id, prompt, correct_answer, wrong_answers, grade_level, subject, times_shown, times_answered, times_correct, last_answered_at")
       .eq("category_id", category)
       .eq("is_active", true)
       .order("display_order", { ascending: true });

@@ -11,12 +11,32 @@
   var CATEGORY_NAMES = {
     history: "History",
     geography: "Geography",
-    hungarian: "History in Hungarian",
-    textbook_history: "Tankönyvi történelem",
+    hungarian: "Történelem magyarul",
+    magyar_foldrajz: "Magyarország földrajza",
+    foldrajz_magyarul: "Földrajz magyarul",
+    magyar_irodalom: "Magyar irodalom",
+    magyar_tudomany: "Természet és tudomány",
+    magyar_nepmesek: "Népmesék és közmondások",
+    magyar_konyha: "Magyar konyha",
+    magyar_zene: "Magyar zene 1970–1989",
+    regen_volt: "Ahogy régen volt",
     time_traveler: "Time Traveler",
     tricky_true_false: "Tricky True or False",
     psychology: "Psychology",
     fifth_grader: "Are You Smarter Than a Fifth Grader?"
+  };
+
+  /* The Hungarian quizzes live behind one menu button and share a locale. */
+  var HUNGARIAN_CATEGORIES = {
+    hungarian: true,
+    magyar_foldrajz: true,
+    foldrajz_magyarul: true,
+    magyar_irodalom: true,
+    magyar_tudomany: true,
+    magyar_nepmesek: true,
+    magyar_konyha: true,
+    magyar_zene: true,
+    regen_volt: true
   };
 
   /* True/false rounds offer two choices, so a second chance would simply hand
@@ -27,6 +47,7 @@
     loading: document.getElementById("screen-loading"),
     error: document.getElementById("screen-error"),
     home: document.getElementById("screen-home"),
+    hungarian: document.getElementById("screen-hungarian"),
     quiz: document.getElementById("screen-quiz"),
     results: document.getElementById("screen-results")
   };
@@ -39,12 +60,16 @@
   var feedbackEl = document.getElementById("feedback");
   var nextBtn = document.getElementById("next-btn");
   var quitBtn = document.getElementById("quit-btn");
+  var quitConfirmEl = document.getElementById("quit-confirm");
+  var quitConfirmTextEl = document.getElementById("quit-confirm-text");
   var readBtn = document.getElementById("read-btn");
+  var voiceNoticeEl = document.getElementById("voice-notice");
   var resultEmoji = document.getElementById("result-emoji");
   var resultTitle = document.getElementById("result-title");
   var resultScore = document.getElementById("result-score");
   var shareBtn = document.getElementById("share-btn");
   var shareStatusEl = document.getElementById("share-status");
+  var againBtn = document.getElementById("again-btn");
   var errorMessageEl = document.getElementById("error-message");
   var fifthHelpEl = document.getElementById("fifth-help");
   var peekBtn = document.getElementById("peek-btn");
@@ -60,7 +85,7 @@
   var trickyMenuDescription = document.getElementById("tricky-menu-description");
 
   var state = {
-    category: "textbook_history",
+    category: "hungarian",
     round: [],
     index: 0,
     score: 0,
@@ -93,6 +118,18 @@
         return "Question " + i + " of " + n + "  •  Score: " + score;
       },
       option: function (i) { return "Option " + i; },
+      answersGroup: "Answer choices",
+      answerCorrect: "Correct answer. ",
+      answerWrong: "Your answer, wrong. ",
+      quitConfirm: function (right) {
+        return right === 1
+          ? "Stop this run? You have 1 right so far."
+          : "Stop this run? You have " + right + " right so far.";
+      },
+      quitKeep: "Keep playing",
+      quitYes: "Yes, stop",
+      saveFailed: "Your score could not be saved. Please check the internet connection.",
+      noVoice: "Hungarian speech is not installed on this device.",
       correct: "✓ Correct! Well done.",
       correctSpoken: "Correct! Well done.",
       correct2: "✓ Correct — you got it on the second try!",
@@ -140,6 +177,16 @@
         return i + ". kérdés a " + n + "-ből  •  Pontszám: " + score;
       },
       option: function (i) { return i + ". válasz"; },
+      answersGroup: "Válaszlehetőségek",
+      answerCorrect: "Helyes válasz. ",
+      answerWrong: "A te válaszod, hibás. ",
+      quitConfirm: function (right) {
+        return "Megállsz? Eddig " + right + " helyes válaszod van.";
+      },
+      quitKeep: "Játszom tovább",
+      quitYes: "Igen, megállok",
+      saveFailed: "Az eredményt nem sikerült elmenteni. Ellenőrizd az internetkapcsolatot.",
+      noVoice: "Ezen az eszközön nincs telepítve magyar beszédhang.",
       correct: "✓ Helyes! Ügyes vagy!",
       correctSpoken: "Helyes! Ügyes vagy!",
       correct2: "✓ Helyes — másodikra sikerült!",
@@ -183,7 +230,7 @@
   };
 
   function locale() {
-    return state.category === "hungarian" || state.category === "textbook_history" ? "hu" : "en";
+    return HUNGARIAN_CATEGORIES[state.category] ? "hu" : "en";
   }
 
   function isTrueFalse() {
@@ -205,12 +252,48 @@
     return copy;
   }
 
-  /* Weighted sampling without replacement. Every question remains eligible,
-     while a question with fewer global views receives a larger lottery weight. */
+  /* How the lottery is tuned. Every question always keeps a real weight, so
+     nothing is ever excluded -- these only change the order things tend to
+     arrive in. Raise a number to make that pull stronger. */
+  var VARIETY_PULL = 0.25;      /* toward questions seen less often */
+  var COOLDOWN_DAYS = 7;        /* how long a just-answered question rests */
+  var COOLDOWN_FLOOR = 0.4;     /* its weight the moment after answering */
+  var EASE_SPREAD = 0.3;        /* toward questions she usually gets right */
+  var MIN_ANSWERS_FOR_EASE = 4; /* below this there is no useful accuracy yet */
+
+  /* Weighted sampling without replacement (Efraimidis-Spirakis): each question
+     draws a key of -ln(U)/weight and the smallest keys come first, so a heavier
+     weight means "tends to arrive earlier" rather than "always wins".
+
+     Unlimited Mode orders the whole pool this way, and it is sudden death, so
+     the order is the game. The variety pull alone used to stack every
+     least-seen question at the front -- which is also every hardest question,
+     since new material is what she has seen least. Runs died around question
+     six and the newest batch never got past the front of the queue. Two gentler
+     pulls balance it: a question answered in the last few days rests for a
+     while, and one she reliably gets right drifts forward of one that beats
+     her, so a long run warms up instead of opening on a wall. */
   function weightedSample(items, count) {
+    var now = Date.now();
     return items.map(function (question) {
       var views = Math.max(question.timesShown || 0, question.timesAnswered || 0);
-      var weight = 1 / Math.sqrt(1 + views);
+      var weight = 1 / Math.pow(1 + views, VARIETY_PULL);
+
+      var answered = question.timesAnswered || 0;
+      if (answered >= MIN_ANSWERS_FOR_EASE) {
+        var accuracy = Math.min(1, (question.timesCorrect || 0) / answered);
+        weight *= (1 - EASE_SPREAD) + (2 * EASE_SPREAD * accuracy);
+      }
+
+      var answeredAt = question.lastAnsweredAt ? Date.parse(question.lastAnsweredAt) : NaN;
+      if (!isNaN(answeredAt)) {
+        var daysRested = (now - answeredAt) / 86400000;
+        if (daysRested < COOLDOWN_DAYS) {
+          var recovered = Math.max(0, daysRested) / COOLDOWN_DAYS;
+          weight *= COOLDOWN_FLOOR + (1 - COOLDOWN_FLOOR) * recovered;
+        }
+      }
+
       var random = Math.max(Math.random(), Number.MIN_VALUE);
       return {
         question: question,
@@ -237,10 +320,14 @@
     try { return localStorage.getItem(key); } catch (error) { return null; }
   }
 
+  /* A category that is unavailable in the current mode stays focusable and
+     readable: `disabled` would hide its explanation from the keyboard and from
+     assistive technology, and the click is already refused in startRound. */
   function setMenuBusy(busy) {
     for (var i = 0; i < menuBtns.length; i++) {
       var unavailable = state.unlimited && menuBtns[i].dataset.category === "fifth_grader";
-      menuBtns[i].disabled = busy || unavailable;
+      menuBtns[i].disabled = busy;
+      menuBtns[i].setAttribute("aria-disabled", String(unavailable));
       menuBtns[i].classList.toggle("mode-unavailable", unavailable);
     }
   }
@@ -263,6 +350,7 @@
       : "The obvious answer is often wrong — one try each, no second chances";
     fifthMenuBtn.setAttribute("aria-disabled", String(state.unlimited));
     setMenuBusy(state.loading);
+    save("quiz-unlimited", state.unlimited ? "on" : "off");
   }
 
   unlimitedToggle.addEventListener("click", function () {
@@ -280,6 +368,8 @@
   function applyFontStep() {
     document.documentElement.style.fontSize =
       (22 * FONT_STEPS[state.fontStep] / 100) + "px";
+    /* Lets the stylesheet react to the text step on any screen width. */
+    document.documentElement.setAttribute("data-font-step", String(state.fontStep));
     save("quiz-font-step", state.fontStep);
   }
 
@@ -297,8 +387,9 @@
   function applyTheme(theme) {
     document.documentElement.setAttribute("data-theme", theme);
     var dark = theme === "dark";
+    /* The label names the action the button performs, so aria-pressed would
+       contradict it ("Light, pressed" reads as "light mode is already on"). */
     themeBtn.textContent = dark ? "☀️ Light" : "🌙 Dark";
-    themeBtn.setAttribute("aria-pressed", String(dark));
     var meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute("content", dark ? "#161310" : "#fffbf2");
     save("quiz-theme", theme);
@@ -312,19 +403,44 @@
   var voiceBtn = document.getElementById("voice-toggle");
   var speechOK = "speechSynthesis" in window;
 
+  /* Chrome fills the voice list asynchronously, so a cold getVoices() returns
+     an empty array and the first question of a session would be read with the
+     wrong voice. Cache the list and refresh it whenever the browser says so. */
+  var voiceCache = [];
+  function refreshVoices() {
+    if (!speechOK) return;
+    voiceCache = window.speechSynthesis.getVoices() || [];
+  }
+  if (speechOK) {
+    refreshVoices();
+    window.speechSynthesis.addEventListener("voiceschanged", refreshVoices);
+  }
+
+  function voiceFor(code) {
+    if (!voiceCache.length) refreshVoices();
+    var local = null;
+    for (var i = 0; i < voiceCache.length; i++) {
+      var voice = voiceCache[i];
+      if (!voice.lang || voice.lang.toLowerCase().indexOf(code) !== 0) continue;
+      /* Prefer a voice installed on the device: a remote one adds latency and
+         goes silent without a network. */
+      if (voice.localService) return voice;
+      if (!local) local = voice;
+    }
+    return local;
+  }
+
   function speak(text) {
     if (!speechOK) return;
+    var voice = voiceFor(locale());
+    /* Speaking Hungarian text with an English voice produces gibberish, which
+       is worse than silence. Stay quiet and let applyVoice explain why. */
+    if (!voice && locale() === "hu") return;
     window.speechSynthesis.cancel();
     var utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 0.9;
     utterance.lang = L().lang;
-    var voices = window.speechSynthesis.getVoices();
-    for (var i = 0; i < voices.length; i++) {
-      if (voices[i].lang && voices[i].lang.indexOf(locale()) === 0) {
-        utterance.voice = voices[i];
-        break;
-      }
-    }
+    if (voice) utterance.voice = voice;
     window.speechSynthesis.speak(utterance);
   }
 
@@ -375,6 +491,15 @@
     document.getElementById("home-btn").textContent = strings.home;
     shareBtn.textContent = strings.share;
     shareStatusEl.textContent = strings.shareHelp;
+    optionsEl.setAttribute("aria-label", strings.answersGroup);
+    document.getElementById("quit-keep-btn").textContent = strings.quitKeep;
+    document.getElementById("quit-yes-btn").textContent = strings.quitYes;
+    /* Without a matching voice, "Read this question" would do nothing at all.
+       Say so rather than leaving a dead button on screen. */
+    var speakable = !speechOK || Boolean(voiceFor(locale())) || locale() === "en";
+    readBtn.hidden = !speechOK || !speakable;
+    voiceNoticeEl.hidden = speakable;
+    voiceNoticeEl.textContent = speakable ? "" : strings.noVoice;
     var lang = locale() === "hu" ? "hu" : "en";
     screens.quiz.setAttribute("lang", lang);
     screens.results.setAttribute("lang", lang);
@@ -425,6 +550,7 @@
       state.unlimitedEnded = false;
       state.lifelines = { peek: false, copy: false, save: false, saveSucceeded: false };
 
+      hideQuitConfirm();
       applyLocale();
       barEl.innerHTML = "";
       barEl.hidden = state.unlimited;
@@ -583,13 +709,18 @@
     for (var i = 0; i < buttons.length; i++) {
       var button = buttons[i];
       var badge = button.querySelector(".option-badge");
+      /* The badge is aria-hidden, so the ✓/✗ has to reach assistive technology
+         through the label too — colour, symbol and words, on every path. */
+      var spoken = L().option(button.dataset.num) + ": " + button.dataset.text;
       if (button.dataset.text === question.a) {
         button.classList.add("is-correct");
         button.classList.remove("is-faded");
         badge.textContent = "✓";
+        button.setAttribute("aria-label", L().answerCorrect + spoken);
       } else if (button === chosenWrongButton) {
         button.classList.add("is-wrong");
         badge.textContent = "✗";
+        button.setAttribute("aria-label", L().answerWrong + spoken);
       } else if (!button.classList.contains("is-wrong")) {
         button.classList.add("is-faded");
       }
@@ -724,14 +855,46 @@
     }
   });
 
-  quitBtn.addEventListener("click", function () {
-    if (speechOK) window.speechSynthesis.cancel();
-    show("home");
+  /* Send her back to the menu the category actually lives on, and put focus on
+     the button she came in through. */
+  function returnToMenu() {
+    show(HUNGARIAN_CATEGORIES[state.category] ? "hungarian" : "home");
     var currentMenuButton = document.querySelector(
       '.menu-btn[data-category="' + state.category + '"]'
     );
     if (currentMenuButton) currentMenuButton.focus();
+  }
+
+  function leaveRound() {
+    if (speechOK) window.speechSynthesis.cancel();
+    hideQuitConfirm();
+    returnToMenu();
+  }
+
+  function hideQuitConfirm() {
+    quitConfirmEl.hidden = true;
+    quitBtn.hidden = false;
+  }
+
+  /* A run can be hundreds of questions long and this button sits under Next.
+     One mis-tap should not silently throw the whole run away. */
+  quitBtn.addEventListener("click", function () {
+    if (state.answers.length < 5) {
+      leaveRound();
+      return;
+    }
+    quitConfirmTextEl.textContent = L().quitConfirm(state.score);
+    quitConfirmEl.hidden = false;
+    quitBtn.hidden = true;
+    document.getElementById("quit-keep-btn").focus();
   });
+
+  document.getElementById("quit-keep-btn").addEventListener("click", function () {
+    hideQuitConfirm();
+    quitBtn.focus();
+  });
+
+  document.getElementById("quit-yes-btn").addEventListener("click", leaveRound);
 
   function resultPayload() {
     var startedTime = new Date(state.startedAt).getTime();
@@ -825,7 +988,10 @@
       : strings.score(score, total);
     shareStatusEl.textContent = strings.shareHelp;
     show("results");
-    resultTitle.focus();
+    /* She restarts constantly — half of all Tricky True or False runs end by
+       question four — so land on the button she actually wants. The title is
+       still read aloud below, so nothing is lost by not focusing it. */
+    againBtn.focus();
     if (state.voiceOn) {
       speak(title + " " + (state.unlimited
         ? strings.unlimitedScore(score, total, clearedUnlimited)
@@ -834,6 +1000,8 @@
 
     window.QuizBackend.recordResult(state.category, resultPayload()).catch(function (error) {
       console.error("Quiz score tracking failed:", error);
+      /* A 430-question run is too much work to lose in silence. */
+      shareStatusEl.textContent = strings.saveFailed;
     });
   }
 
@@ -841,21 +1009,30 @@
     startRound(state.category);
   });
 
-  document.getElementById("home-btn").addEventListener("click", function () {
-    show("home");
-    var currentMenuButton = document.querySelector(
-      '.menu-btn[data-category="' + state.category + '"]'
-    );
-    if (currentMenuButton) currentMenuButton.focus();
-  });
+  document.getElementById("home-btn").addEventListener("click", returnToMenu);
 
   for (var menuIndex = 0; menuIndex < menuBtns.length; menuIndex++) {
     (function (button) {
+      /* The Hungarian group button carries no category — it opens a submenu. */
+      if (!button.dataset.category) return;
       button.addEventListener("click", function () {
         startRound(button.dataset.category);
       });
     })(menuBtns[menuIndex]);
   }
+
+  var hungarianGroupBtn = document.getElementById("hungarian-group-btn");
+  hungarianGroupBtn.addEventListener("click", function () {
+    show("hungarian");
+    window.scrollTo(0, 0);
+    screens.hungarian.querySelector(".menu-btn").focus();
+  });
+
+  document.getElementById("hungarian-back-btn").addEventListener("click", function () {
+    show("home");
+    window.scrollTo(0, 0);
+    hungarianGroupBtn.focus();
+  });
 
   document.addEventListener("keydown", function (event) {
     if (screens.quiz.hidden || state.answered) return;
@@ -889,9 +1066,14 @@
     state.fontStep = savedStep;
   }
   applyFontStep();
-  applyTheme(load("quiz-theme") === "dark" ? "dark" : "light");
+  /* Dark is the default: she plays from the afternoon through to about 2am and
+     has cataracts, where light scatter makes a bright page harder to read. An
+     explicit choice still wins. */
+  applyTheme(load("quiz-theme") === "light" ? "light" : "dark");
   state.voiceOn = load("quiz-voice") === "on";
   applyVoice();
-  applyUnlimitedMode(false);
+  /* Almost every round she plays is an Unlimited run, so remember the setting
+     instead of making her switch it on again every session. */
+  applyUnlimitedMode(load("quiz-unlimited") !== "off");
   initializeApp();
 })();

@@ -1,3 +1,7 @@
 .DS_Store
 CLAUDE.md
 .claude/launch.json
+
+# Working files, not part of the site
+drafts/
+.artifact/

@@ -19,7 +19,7 @@
       <div class="controls">
         <button id="text-smaller" class="ctrl-btn" type="button" aria-label="Make text smaller">A−</button>
         <button id="text-bigger" class="ctrl-btn" type="button" aria-label="Make text bigger">A+</button>
-        <button id="theme-toggle" class="ctrl-btn" type="button" aria-pressed="false">🌙 Dark</button>
+        <button id="theme-toggle" class="ctrl-btn" type="button">🌙 Dark</button>
         <button id="voice-toggle" class="ctrl-btn" type="button" aria-pressed="false">🔊 Voice: Off</button>
       </div>
     </div>
@@ -59,11 +59,11 @@
         </span>
       </button>
       <div class="menu">
-        <button class="big-btn menu-btn" type="button" data-category="textbook_history" lang="hu">
-          <span class="menu-emoji" aria-hidden="true">📖</span>
+        <button id="hungarian-group-btn" class="big-btn menu-btn group-btn" type="button" lang="hu">
+          <span class="menu-emoji" aria-hidden="true">🇭🇺</span>
           <span>
-            <span class="menu-title">Tankönyvi történelem</span>
-            <span class="menu-sub">Az 1970-es és 1980-as évek iskolai tananyaga</span>
+            <span class="menu-title">Magyar kvízek</span>
+            <span class="menu-sub">Kilenc kvíz magyarul — történelem, földrajz, irodalom és még sok más ➜</span>
           </span>
         </button>
         <button class="big-btn menu-btn" type="button" data-category="history">
@@ -71,13 +71,6 @@
           <span>
             <span class="menu-title">History</span>
             <span class="menu-sub">Kings, presidents, and days gone by</span>
-          </span>
-        </button>
-        <button class="big-btn menu-btn" type="button" data-category="hungarian" lang="hu">
-          <span class="menu-emoji" aria-hidden="true">🇭🇺</span>
-          <span>
-            <span class="menu-title">Történelem magyarul</span>
-            <span class="menu-sub">Magyar és világtörténelem — magyar nyelven</span>
           </span>
         </button>
         <button class="big-btn menu-btn" type="button" data-category="geography">
@@ -120,14 +113,88 @@
       Turn on <strong>🔊 Voice</strong> to have questions read out loud.</p>
     </section>
 
+    <!-- HUNGARIAN MENU SCREEN -->
+    <section id="screen-hungarian" class="screen" hidden lang="hu">
+      <h1>Magyar kvízek</h1>
+      <p class="lead">Válassz egy kvízt.</p>
+      <div class="menu">
+        <button class="big-btn menu-btn" type="button" data-category="hungarian">
+          <span class="menu-emoji" aria-hidden="true">📖</span>
+          <span>
+            <span class="menu-title">Történelem magyarul</span>
+            <span class="menu-sub">Magyar és világtörténelem, az iskolai tananyaggal együtt</span>
+          </span>
+        </button>
+        <button class="big-btn menu-btn" type="button" data-category="magyar_foldrajz">
+          <span class="menu-emoji" aria-hidden="true">🗺️</span>
+          <span>
+            <span class="menu-title">Magyarország földrajza</span>
+            <span class="menu-sub">Folyók, hegyek, megyék és városok</span>
+          </span>
+        </button>
+        <button class="big-btn menu-btn" type="button" data-category="foldrajz_magyarul">
+          <span class="menu-emoji" aria-hidden="true">🌍</span>
+          <span>
+            <span class="menu-title">Földrajz magyarul</span>
+            <span class="menu-sub">Országok, fővárosok, folyók és hegyek</span>
+          </span>
+        </button>
+        <button class="big-btn menu-btn" type="button" data-category="magyar_irodalom">
+          <span class="menu-emoji" aria-hidden="true">📚</span>
+          <span>
+            <span class="menu-title">Magyar irodalom</span>
+            <span class="menu-sub">Költők, regények és híres sorok</span>
+          </span>
+        </button>
+        <button class="big-btn menu-btn" type="button" data-category="magyar_tudomany">
+          <span class="menu-emoji" aria-hidden="true">🔬</span>
+          <span>
+            <span class="menu-title">Természet és tudomány</span>
+            <span class="menu-sub">Állatok, növények, az emberi test és a világűr</span>
+          </span>
+        </button>
+        <button class="big-btn menu-btn" type="button" data-category="magyar_nepmesek">
+          <span class="menu-emoji" aria-hidden="true">🦊</span>
+          <span>
+            <span class="menu-title">Népmesék és közmondások</span>
+            <span class="menu-sub">Mesék, szólások és közmondások</span>
+          </span>
+        </button>
+        <button class="big-btn menu-btn" type="button" data-category="magyar_konyha">
+          <span class="menu-emoji" aria-hidden="true">🥘</span>
+          <span>
+            <span class="menu-title">Magyar konyha</span>
+            <span class="menu-sub">Ételek, fűszerek és hagyományok</span>
+          </span>
+        </button>
+        <button class="big-btn menu-btn" type="button" data-category="magyar_zene">
+          <span class="menu-emoji" aria-hidden="true">🎸</span>
+          <span>
+            <span class="menu-title">Magyar zene 1970–1989</span>
+            <span class="menu-sub">Együttesek, énekesek és slágerek</span>
+          </span>
+        </button>
+        <button class="big-btn menu-btn" type="button" data-category="regen_volt">
+          <span class="menu-emoji" aria-hidden="true">📺</span>
+          <span>
+            <span class="menu-title">Ahogy régen volt</span>
+            <span class="menu-sub">Boltok, márkák, iskola és tévé</span>
+          </span>
+        </button>
+      </div>
+      <button id="hungarian-back-btn" class="big-btn" type="button">⬅ Vissza a főmenübe</button>
+    </section>
+
     <!-- QUIZ SCREEN -->
     <section id="screen-quiz" class="screen" hidden>
       <div class="quiz-top">
-        <p id="progress" class="progress" aria-live="polite"></p>
+        <p id="progress" class="progress"></p>
         <button id="read-btn" class="ctrl-btn" type="button">🔊 Read this question</button>
       </div>
 
       <div id="progress-bar" class="bar" aria-hidden="true"></div>
+
+      <p id="voice-notice" class="question-meta" hidden></p>
 
       <p id="question-meta" class="question-meta" hidden></p>
 
@@ -143,16 +210,21 @@
       </aside>
 
       <div class="question-card">
-        <h2 id="question-text" class="question" tabindex="-1"></h2>
+        <h1 id="question-text" class="question" tabindex="-1"></h1>
       </div>
 
       <div id="options" class="options" role="group" aria-label="Answer choices"></div>
 
-      <p id="feedback" class="feedback" role="status" aria-live="assertive"></p>
+      <p id="feedback" class="feedback" role="alert"></p>
 
       <div class="quiz-bottom">
         <button id="next-btn" class="big-btn next-btn" type="button" hidden>Next question ➜</button>
         <button id="quit-btn" class="quiet-btn" type="button">Stop and go back to the menu</button>
+        <div id="quit-confirm" class="quit-confirm" hidden>
+          <p id="quit-confirm-text" class="quit-confirm-text"></p>
+          <button id="quit-keep-btn" class="big-btn" type="button">Keep playing</button>
+          <button id="quit-yes-btn" class="big-btn quit-yes-btn" type="button">Yes, stop</button>
+        </div>
       </div>
 
       <p class="hint keyboard-hint" id="kb-hint">Tip: you can press <strong>1, 2, 3 or 4</strong> on your keyboard to answer.</p>
@@ -161,16 +233,16 @@
     <!-- RESULTS SCREEN -->
     <section id="screen-results" class="screen" hidden>
       <p id="result-emoji" class="result-emoji" aria-hidden="true"></p>
-      <h2 id="result-title" class="result-title" tabindex="-1"></h2>
+      <h1 id="result-title" class="result-title" tabindex="-1"></h1>
       <p id="result-score" class="result-score"></p>
-      <button id="share-btn" class="big-btn share-btn" type="button">💬 Text my score</button>
+      <div class="menu">
+        <button id="again-btn" class="big-btn next-btn" type="button">🔁 Play again</button>
+        <button id="home-btn" class="big-btn" type="button">🏠 Back to the menu</button>
+        <button id="share-btn" class="big-btn" type="button">💬 Text my score</button>
+      </div>
       <p id="share-status" class="share-status" role="status" aria-live="polite">
         Opens your sharing menu with a ready-to-send message.
       </p>
-      <div class="menu">
-        <button id="again-btn" class="big-btn" type="button">🔁 Play again</button>
-        <button id="home-btn" class="big-btn" type="button">🏠 Back to the menu</button>
-      </div>
     </section>
 
   </main>

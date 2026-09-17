@@ -49,11 +49,11 @@
   --plum: #6a2c70;            /* primary action — 9.4:1 with white */
   --on-plum: #ffffff;
   --correct-bg: #0d652d;
-  --wrong-bg: #b3261e;
+  --wrong-bg: #9c1c15;        /* 7.6:1 with white — the old red sat at 6.5:1 */
   --on-strong: #ffffff;
   --good-text: #0d652d;
-  --bad-text: #b3261e;
-  --focus: #e37400;
+  --bad-text: #9c1c15;
+  --focus: #a33d00;           /* 7.0:1 on paper — the old orange was 3.0:1 */
   --muted: #554e43;
   --unlimited: #5b21b6;
   --on-unlimited: #ffffff;
@@ -314,10 +314,18 @@ main {
   box-shadow: 0.32rem 0.32rem 0 var(--shadow);
 }
 
-.menu-btn.mode-unavailable:disabled {
+/* Opens a submenu rather than starting a quiz. The arrow in its subtitle says
+   so in words; this just gives it a little visual weight to match. */
+.group-btn {
+  border-color: var(--plum);
+  border-width: 4px;
+}
+
+/* Unavailable, not disabled: the button keeps focus and its explanation stays
+   readable. 0.48 opacity put the sub-label near 1.9:1, effectively invisible. */
+.menu-btn.mode-unavailable {
   cursor: not-allowed;
-  opacity: 0.48;
-  filter: grayscale(0.8);
+  opacity: 0.75;
   box-shadow: none;
 }
 
@@ -498,7 +506,8 @@ main {
 
 .option-btn:disabled { cursor: default; }
 
-.option-btn.is-faded { opacity: 0.55; }
+/* Still dimmed, but she must be able to read the other answers afterwards. */
+.option-btn.is-faded { opacity: 0.75; }
 
 .feedback {
   font-size: 1.35rem;
@@ -534,6 +543,31 @@ main {
   margin: 0.4rem auto 0;
 }
 
+/* Keep real space between "Next question" and the button that ends the run. */
+.quiz-bottom { margin-top: 1.6rem; }
+
+.quit-confirm {
+  border: 3px solid var(--ink);
+  border-radius: 1.1rem;
+  background: var(--card);
+  padding: 1rem;
+  margin-top: 0.8rem;
+}
+
+.quit-confirm-text {
+  font-size: 1.2rem;
+  font-weight: 700;
+  margin: 0 0 0.9rem;
+  text-align: center;
+  overflow-wrap: anywhere;
+}
+
+.quit-yes-btn {
+  color: var(--on-strong);
+  background: var(--wrong-bg);
+  border-color: var(--wrong-bg);
+}
+
 /* ---------- Results ---------- */
 
 .result-emoji {
@@ -557,19 +591,9 @@ main {
   margin: 0.4rem 0 1.4rem;
 }
 
-.share-btn {
-  text-align: center;
-  color: var(--on-plum);
-  background: var(--plum);
-  border-color: var(--plum);
-  box-shadow: 0.35rem 0.35rem 0 var(--shadow);
-  margin-bottom: 0.45rem;
-}
-
-.share-btn:hover:not(:disabled) {
-  background: var(--plum);
-  opacity: 0.92;
-}
+/* "Play again" carries the plum treatment now — it is the button she reaches
+   for on almost every visit to this screen. Share is the rarer action. */
+#share-btn { text-align: center; }
 
 .share-status {
   color: var(--muted);
@@ -595,8 +619,27 @@ main {
   * { animation: none !important; transition: none !important; }
 }
 
+/* The number badge is a fixed 2.3rem that grows with the text, so on a narrow
+   screen at a large text step it squeezes the answer into a column a couple of
+   characters wide. Stack the badge above the answer instead of shrinking
+   anything. `rem` in a media query resolves against the browser's initial font
+   size, not html{font-size}, so A+ cannot trigger the query — hence the
+   separate data-font-step rule. */
+.options .option-btn.is-stacked,
+html[data-font-step="4"] .options .option-btn,
+html[data-font-step="5"] .options .option-btn {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+}
+
 @media (max-width: 34rem) {
   .help-buttons { grid-template-columns: 1fr; }
+  .options .option-btn {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.4rem;
+  }
   .unlimited-toggle,
   .menu-btn {
     flex-direction: column;
