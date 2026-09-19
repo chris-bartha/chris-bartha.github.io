@@ -121,15 +121,24 @@ Unlimited results are stored in the same per-category result tables with `is_unl
 
 ## Your best scores
 
-A **🏆 Your best scores** button on the main menu opens her own numbers: longest run
+A **🏆 Your best scores** button on the main menu opens the numbers: longest run
 overall, rounds played, accuracy, total right answers, current streak and longest
-streak, then a row per category showing her best run, how much of that category's
-question bank it covered, and when it happened, and finally her last eight rounds.
+streak, then a row per category showing the best run, how much of that category's
+question bank it covered, and when it happened, and finally the last eight rounds.
 
-The per-category result tables are insert-only from the browser and `quiz_metrics`
-has no read policy at all, both deliberately. So the screen does not read a table:
-it calls `get_my_quiz_stats(timezone)`, a `security definer` function that filters
-to `auth.uid()` and can only ever see rows belonging to the caller.
+It shows **the same thing to every visitor**, which is the point. Identity here is
+anonymous auth in `localStorage`, so every device is its own player; filtering to
+the caller meant opening the page on any other device showed an empty screen
+reading "no rounds yet" next to her 1,395. `get_quiz_best_scores(timezone)` returns
+aggregates only — no user ids, device ids, answer payloads or question text — the
+same class of data `/metrics` has always published. The per-category result tables
+stay blocked from the public API.
+
+Both this screen and `/metrics` count days in **her** timezone rather than the
+viewer's. A streak is counted in calendar days and she plays past midnight, so the
+same history reads as a 60-day streak in Los Angeles and a 5-day streak in Toronto.
+`quiz_player_timezone()` returns the timezone of whoever has played the most, and
+both screens use it, so the number cannot change with who is looking.
 
 ## Bűnügyi történetek — the crime corner
 
@@ -214,6 +223,9 @@ Questions are stored in `quiz_questions`; the original local JavaScript question
 - `supabase/migrations/20260918074003_add_time_traveler_round_two.sql`
 - `supabase/migrations/20260918074006_add_tobb_vagy_kevesebb_questions.sql`
 - `supabase/migrations/20260918074007_add_ket_igazsag_questions.sql`
+- `supabase/migrations/20260918080000_shared_best_scores.sql`
+- `supabase/migrations/20260918080100_pin_metrics_timezone.sql`
+- `supabase/migrations/20260918080200_fix_timezone_helper_schema.sql`
 - `supabase/seed.sql`
 
 Each question also keeps global `times_shown`, `times_answered`, and `times_correct` counters. Round selection uses gentle weighted randomness: questions with fewer views have a better chance of appearing, but no active question is excluded. A view is recorded only when the question actually reaches the screen, which keeps long Unlimited runs from counting unseen questions. `quiz_question_stats_dashboard` provides an admin-friendly view of those counters and per-question accuracy.
