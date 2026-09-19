@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Quiz Time!</title>
-  <meta name="description" content="A friendly, easy-to-read quiz game with history, geography, everyday time travel, Hungarian history, textbook history, and a fifth-grade challenge.">
+  <meta name="description" content="A friendly, easy-to-read quiz game with history, geography, everyday time travel, eleven Hungarian quizzes, a fifth-grade challenge, true-crime stories, and your own best scores.">
   <meta name="theme-color" content="#fffbf2">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🧠</text></svg>">
   <link rel="preload" href="fonts/atkinson-regular.woff2" as="font" type="font/woff2" crossorigin>
@@ -13,7 +13,7 @@
        freshly fetched index.html can pair with a ten-minute-old app.js and the
        two disagree. Bump ?v= on every deploy that changes a script or the
        stylesheet; index.html is the only file that then needs to refresh. -->
-  <link rel="stylesheet" href="style.css?v=20260917a">
+  <link rel="stylesheet" href="style.css?v=20260918a">
 </head>
 <body>
 
@@ -49,25 +49,31 @@
     <!-- HOME SCREEN -->
     <section id="screen-home" class="screen" hidden>
       <h1>Welcome to Quiz Time!</h1>
-      <p class="lead">Pick a quiz to play. Standard rounds have 10 questions.</p>
-      <button id="unlimited-toggle" class="unlimited-toggle" type="button" aria-pressed="false">
-        <span class="unlimited-toggle-emoji" aria-hidden="true">😈</span>
-        <span class="unlimited-toggle-copy">
-          <span class="unlimited-toggle-heading">
-            <span>Unlimited Mode</span>
-            <span id="unlimited-toggle-state" class="unlimited-toggle-state">Off</span>
+      <p class="lead">Pick a quiz and keep going for as long as you like. A round only ends when the same question beats you twice.</p>
+
+      <div class="menu extras-menu">
+        <button id="stats-btn" class="big-btn menu-btn extra-btn" type="button">
+          <span class="menu-emoji" aria-hidden="true">🏆</span>
+          <span>
+            <span class="menu-title">Your best scores</span>
+            <span class="menu-sub">Every quiz, your longest run, and how many days in a row ➜</span>
           </span>
-          <span id="unlimited-toggle-description" class="unlimited-toggle-description">
-            Tap to keep playing until one question is missed twice.
+        </button>
+        <button id="crime-btn" class="big-btn menu-btn extra-btn" type="button" lang="hu">
+          <span class="menu-emoji" aria-hidden="true">🚨</span>
+          <span>
+            <span class="menu-title">Bűnügyi történetek</span>
+            <span class="menu-sub">Igaz történetek olvasva és videón — nem kvíz, csak nézd és olvasd ➜</span>
           </span>
-        </span>
-      </button>
+        </button>
+      </div>
+
       <div class="menu">
         <button id="hungarian-group-btn" class="big-btn menu-btn group-btn" type="button" lang="hu">
           <span class="menu-emoji" aria-hidden="true">🇭🇺</span>
           <span>
             <span class="menu-title">Magyar kvízek</span>
-            <span class="menu-sub">Kilenc kvíz magyarul — történelem, földrajz, irodalom és még sok más ➜</span>
+            <span class="menu-sub">Tizenegy kvíz magyarul — történelem, földrajz, irodalom és még sok más ➜</span>
           </span>
         </button>
         <button class="big-btn menu-btn" type="button" data-category="history">
@@ -95,7 +101,7 @@
           <span class="menu-emoji" aria-hidden="true">🤔</span>
           <span>
             <span class="menu-title">Tricky True or False</span>
-            <span id="tricky-menu-description" class="menu-sub">The obvious answer is often wrong — one try each, no second chances</span>
+            <span class="menu-sub">The obvious answer is often wrong — one try each, so a single miss ends the run</span>
           </span>
         </button>
         <button class="big-btn menu-btn" type="button" data-category="psychology">
@@ -109,7 +115,7 @@
           <span class="menu-emoji" aria-hidden="true">🎓</span>
           <span>
             <span class="menu-title">Are You Smarter Than a Fifth Grader?</span>
-            <span id="fifth-menu-description" class="menu-sub">Climb from Grade 1 to Grade 5 with Peek, Copy, and Save</span>
+            <span class="menu-sub">The one short round: ten questions, Grade 1 to Grade 5, with Peek, Copy, and Save</span>
           </span>
         </button>
       </div>
@@ -119,8 +125,11 @@
 
     <!-- HUNGARIAN MENU SCREEN -->
     <section id="screen-hungarian" class="screen" hidden lang="hu">
+      <div class="exit-bar">
+        <button id="hungarian-back-btn" class="big-btn exit-btn" type="button">✖ Kilépés — vissza a főmenübe</button>
+      </div>
       <h1>Magyar kvízek</h1>
-      <p class="lead">Válassz egy kvízt.</p>
+      <p class="lead">Válassz egy kvízt. A játék addig tart, amíg egy kérdés kétszer be nem csap.</p>
       <div class="menu">
         <button class="big-btn menu-btn" type="button" data-category="hungarian">
           <span class="menu-emoji" aria-hidden="true">📖</span>
@@ -185,8 +194,106 @@
             <span class="menu-sub">Boltok, márkák, iskola és tévé</span>
           </span>
         </button>
+        <button class="big-btn menu-btn" type="button" data-category="tobb_vagy_kevesebb">
+          <span class="menu-emoji" aria-hidden="true">⚖️</span>
+          <span>
+            <span class="menu-title">Több vagy kevesebb?</span>
+            <span class="menu-sub">Két válasz, egy próbálkozás — egyetlen hiba véget vet a játéknak</span>
+          </span>
+        </button>
+        <button class="big-btn menu-btn" type="button" data-category="ket_igazsag">
+          <span class="menu-emoji" aria-hidden="true">🕵️</span>
+          <span>
+            <span class="menu-title">Két igazság és egy hazugság</span>
+            <span class="menu-sub">Három állítás, kettő igaz — találd meg a hamisat</span>
+          </span>
+        </button>
       </div>
-      <button id="hungarian-back-btn" class="big-btn" type="button">⬅ Vissza a főmenübe</button>
+      <button id="hungarian-back-btn-bottom" class="big-btn exit-btn" type="button">✖ Kilépés — vissza a főmenübe</button>
+    </section>
+
+    <!-- YOUR BEST SCORES -->
+    <section id="screen-stats" class="screen" hidden>
+      <div class="exit-bar">
+        <button id="stats-back-btn" class="big-btn exit-btn" type="button">✖ Exit — back to the menu</button>
+      </div>
+      <h1 id="stats-title" tabindex="-1">Your best scores</h1>
+      <p id="stats-status" class="lead" role="status" aria-live="polite">Adding up your rounds…</p>
+
+      <div id="stats-headline" class="stat-grid" hidden></div>
+
+      <h2 id="stats-categories-title" class="section-title" hidden>Every quiz you have played</h2>
+      <div id="stats-categories" class="stat-list"></div>
+
+      <h2 id="stats-recent-title" class="section-title" hidden>Your last few rounds</h2>
+      <div id="stats-recent" class="stat-list"></div>
+
+      <button id="stats-back-btn-bottom" class="big-btn exit-btn" type="button">✖ Exit — back to the menu</button>
+    </section>
+
+    <!-- CRIME HUB -->
+    <section id="screen-crime" class="screen" hidden lang="hu">
+      <div class="exit-bar">
+        <button id="crime-back-btn" class="big-btn exit-btn" type="button">✖ Kilépés — vissza a főmenübe</button>
+      </div>
+      <h1 id="crime-title" tabindex="-1">Bűnügyi történetek</h1>
+      <p class="lead">Igaz történetek. Itt nincs pontszám és nincs kvíz — csak olvasnivaló és videó.</p>
+      <div class="menu">
+        <button id="crime-stories-btn" class="big-btn menu-btn" type="button">
+          <span class="menu-emoji" aria-hidden="true">📖</span>
+          <span>
+            <span class="menu-title">Olvasnivaló</span>
+            <span id="crime-stories-sub" class="menu-sub">Történetek nagy betűkkel, itt az alkalmazásban ➜</span>
+          </span>
+        </button>
+        <button id="crime-videos-btn" class="big-btn menu-btn" type="button">
+          <span class="menu-emoji" aria-hidden="true">📺</span>
+          <span>
+            <span class="menu-title">Videók a YouTube-on</span>
+            <span id="crime-videos-sub" class="menu-sub">Magyar nyelvű bűnügyi videók — új lapon nyílnak meg ➜</span>
+          </span>
+        </button>
+      </div>
+      <button id="crime-back-btn-bottom" class="big-btn exit-btn" type="button">✖ Kilépés — vissza a főmenübe</button>
+    </section>
+
+    <!-- CRIME STORY LIST -->
+    <section id="screen-crime-stories" class="screen" hidden lang="hu">
+      <div class="exit-bar">
+        <button id="stories-back-btn" class="big-btn exit-btn" type="button">✖ Kilépés — vissza a bűnügyi menübe</button>
+      </div>
+      <h1 id="stories-title" tabindex="-1">Olvasnivaló</h1>
+      <p id="stories-status" class="lead" role="status" aria-live="polite">Töltöm a történeteket…</p>
+      <div id="stories-list" class="menu"></div>
+      <button id="stories-back-btn-bottom" class="big-btn exit-btn" type="button">✖ Kilépés — vissza a bűnügyi menübe</button>
+    </section>
+
+    <!-- CRIME STORY READER -->
+    <section id="screen-crime-story" class="screen" hidden lang="hu">
+      <div class="exit-bar">
+        <button id="story-back-btn" class="big-btn exit-btn" type="button">✖ Kilépés — vissza a listához</button>
+        <button id="story-read-btn" class="ctrl-btn" type="button">🔊 Olvasd fel</button>
+      </div>
+      <h1 id="story-title" tabindex="-1"></h1>
+      <p id="story-meta" class="question-meta"></p>
+      <article id="story-body" class="story-body"></article>
+      <p id="story-closing" class="story-closing"></p>
+      <button id="story-back-btn-bottom" class="big-btn exit-btn" type="button">✖ Kilépés — vissza a listához</button>
+    </section>
+
+    <!-- CRIME VIDEO LIST -->
+    <section id="screen-crime-videos" class="screen" hidden lang="hu">
+      <div class="exit-bar">
+        <button id="videos-back-btn" class="big-btn exit-btn" type="button">✖ Kilépés — vissza a bűnügyi menübe</button>
+      </div>
+      <h1 id="videos-title" tabindex="-1">Videók a YouTube-on</h1>
+      <p id="videos-status" class="lead" role="status" aria-live="polite">Töltöm a videókat…</p>
+      <p class="hint">A videó új lapon nyílik meg. Amit megnyitsz, még három órán át itt marad, utána lekerül a listáról — de nem vész el, alul bármikor előhozhatod.</p>
+      <div id="videos-list" class="menu"></div>
+      <button id="videos-watched-toggle" class="big-btn" type="button" aria-pressed="false" hidden>
+        👁️ Amiket már megnéztem
+      </button>
+      <button id="videos-back-btn-bottom" class="big-btn exit-btn" type="button">✖ Kilépés — vissza a bűnügyi menübe</button>
     </section>
 
     <!-- QUIZ SCREEN -->
@@ -220,6 +327,7 @@
       <div id="options" class="options" role="group" aria-label="Answer choices"></div>
 
       <p id="feedback" class="feedback" role="alert"></p>
+      <p id="explanation" class="explanation" hidden></p>
 
       <div class="quiz-bottom">
         <button id="next-btn" class="big-btn next-btn" type="button" hidden>Next question ➜</button>
@@ -255,9 +363,9 @@
     <p>Made with ❤️ for Mom</p>
   </footer>
 
-  <script src="config.js?v=20260917a"></script>
+  <script src="config.js?v=20260918a"></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.106.2/dist/umd/supabase.js"></script>
-  <script src="supabase-client.js?v=20260917a"></script>
-  <script src="app.js?v=20260917a"></script>
+  <script src="supabase-client.js?v=20260918a"></script>
+  <script src="app.js?v=20260918a"></script>
 </body>
 </html>

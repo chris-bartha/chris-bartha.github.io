@@ -4,18 +4,18 @@ An accessible, large-print quiz game made for Mom. The app now loads its questio
 
 ## Quiz library
 
-The Supabase database contains **6,519 unique questions** across 15 active categories.
+The Supabase database contains **10,762 unique questions** across 17 active categories.
 
-The menu is grouped by language. One **Magyar kvízek** button opens the nine
+The menu is grouped by language. One **Magyar kvízek** button opens the eleven
 Hungarian quizzes; the English ones stay on the main menu.
 
-### Magyar kvízek — 3,821 questions
+### Magyar kvízek — 5,054 questions
 
-- 730 **Történelem magyarul** — Hungarian and world history, including the school
+- 1,460 **Történelem magyarul** — Hungarian and world history, including the school
   curriculum encountered by students born around 1964
-- 518 **Földrajz magyarul** — world geography in Hungarian
 - 519 **Természet és tudomány** — animals, plants, the body, space, weather, physics,
   chemistry, and Hungarian scientists
+- 518 **Földrajz magyarul** — world geography in Hungarian
 - 415 **Magyar irodalom** — the school canon, with a *Híres sorok* block of
   line-completion questions
 - 388 **Ahogy régen volt** — everyday life in Hungary, roughly 1974–1994
@@ -23,19 +23,46 @@ Hungarian quizzes; the English ones stay on the main menu.
 - 322 **Népmesék és közmondások** — proverbs, idioms, folk tales, riddles
 - 306 **Magyar konyha** — dishes, spices, pastries, holiday food, regional origins
 - 268 **Magyar zene 1970–1989** — bands, singers, songs, rock operas
+- 253 **Két igazság és egy hazugság** — three statements, two true, pick the lie
+- 250 **Több vagy kevesebb?** — is the real figure more or less than this round number?
 
-### English — 2,698 questions
+### English — 5,708 questions
 
-- 1,030 History questions
+- 2,063 History questions
+- 1,245 Geography questions
+- 901 “Tricky True or False” statements where the obvious answer is often the wrong one
+- 822 “Time Traveler” questions about everyday life, food, clothing, inventions, culture, medicine, travel, and discovery across history
 - 602 Psychology questions on the brain, memory, learning, biases, development, and mental health
-- 415 Geography questions
-- 301 “Tricky True or False” statements where the obvious answer is often the wrong one
-- 275 “Time Traveler” questions about everyday life, food, clothing, inventions, culture, medicine, travel, and discovery across history
 - 75 “Are You Smarter Than a Fifth Grader?” questions, with 15 questions at each grade level
 
-Every Hungarian question is written so the correct answer is **never the longest
-option**, and all four choices share one type and grammatical form. The Psychology
-bank was rewritten in September 2026 for the same reason — see below.
+Every question is written so the correct answer is **never reliably the longest
+option**, and all choices share one type and grammatical form. Measured across the
+4,183 questions added in September 2026, the correct answer is the strictly longest
+option 24.9% of the time — chance is 25%. The Psychology bank was rewritten for the
+same reason — see below.
+
+### The expansion of September 2026
+
+She had cleared or nearly cleared the categories she plays most: her longest Time
+Traveler run reached all 275 questions, Geography 308 of 415, History 430. Those
+five banks were doubled or tripled, and two new Hungarian categories were added:
+
+| Category | Was | Now |
+| --- | --- | --- |
+| History | 1,030 | 2,063 |
+| Történelem magyarul | 730 | 1,460 |
+| Geography | 415 | 1,245 |
+| Tricky True or False | 301 | 901 |
+| Time Traveler | 275 | 822 |
+| Több vagy kevesebb? | — | 250 |
+| Két igazság és egy hazugság | — | 253 |
+
+### The note behind an answer
+
+`quiz_questions.explanation` is an optional single sentence shown after the answer
+is revealed. It is required in the two new categories, where the real figure or the
+correction *is* the payoff, and optional everywhere else — 2,577 questions carry one,
+including every Tricky True or False statement added in the expansion.
 
 The fifth-grade challenge asks two questions from each grade, in order from Grade 1 through Grade 5. It simulates the show’s three classmate helps:
 
@@ -72,13 +99,63 @@ Every statement in this category is written so the obvious answer is often the w
 
 This is the one category with **no second chances**. Two choices plus a second try would simply hand over the answer, so a miss reveals the answer immediately. The quiz screen states the rule on a badge, the keyboard hint narrows to **1** or **2**, and `second_try_correct` is always zero — enforced in the database by a check constraint, not only in the browser. In Unlimited Mode this makes the category true sudden death: the very first miss ends the run.
 
-## Unlimited Mode
+## One mode: the run
 
-The large **Unlimited Mode** control on the quiz menu turns every category except Fifth Grader into a sudden-death run. Questions continue through the weighted category library until one question is answered incorrectly twice. The second chance remains available in every category except Tricky True or False, which has none, so there a single miss ends the run.
+Every quiz but **Are You Smarter Than a Fifth Grader?** is a single open-ended run.
+Questions continue through the weighted category library until one question is
+answered incorrectly twice. The second chance remains available everywhere except
+the two-choice categories — Tricky True or False and Több vagy kevesebb? — where a
+second try would simply hand over the answer, so a single miss ends the run.
 
-The setting is remembered between sessions, because almost every round played is an Unlimited run. Fifth Grader is marked unavailable while Unlimited Mode is on, but the button stays focusable and its explanation stays readable — it is not `disabled`, which would hide that explanation from the keyboard and from assistive technology.
+This used to be a toggle called Unlimited Mode, and the toggle is gone. It was not
+a close call: **1,344 of her 1,405 rounds (95.7%) were already Unlimited runs**, so
+the switch was a step between her and a round rather than a choice she was making.
+Fifth Grader keeps its ten-question Grade 1 → Grade 5 ladder, its classmate helps,
+and its progress bar, and is the only category still recorded with
+`is_unlimited = false`.
+
+`ROUND_LENGTH` still exists, and still means ten, but now only the Fifth Grader
+ladder reads it.
 
 Unlimited results are stored in the same per-category result tables with `is_unlimited = true`; every result created before this feature is marked `false`. Standard quiz counts, averages, perfect scores, category performance, and score distribution remain standard-only. Daily activity, streaks, correct-answer totals, and second-chance totals include both modes. Unlimited runs also have separate counts, category records, and a dated top-three leaderboard.
+
+## Your best scores
+
+A **🏆 Your best scores** button on the main menu opens her own numbers: longest run
+overall, rounds played, accuracy, total right answers, current streak and longest
+streak, then a row per category showing her best run, how much of that category's
+question bank it covered, and when it happened, and finally her last eight rounds.
+
+The per-category result tables are insert-only from the browser and `quiz_metrics`
+has no read policy at all, both deliberately. So the screen does not read a table:
+it calls `get_my_quiz_stats(timezone)`, a `security definer` function that filters
+to `auth.uid()` and can only ever see rows belonging to the caller.
+
+## Bűnügyi történetek — the crime corner
+
+A **🚨 Bűnügyi történetek** button opens the one part of the app that is not a quiz:
+ten long-form Hungarian true-crime stories to read in place, and 93 hand-picked
+Hungarian-language crime videos that open on YouTube.
+
+The stories run 900–1,400 words in short paragraphs of plain prose, written for
+reading at 22px and up, and cover documented historical cases — the 1983
+Szépművészeti theft, Rózsa Sándor, the 1911 Mona Lisa theft, the Tichborne
+Claimant, the great gold robbery of 1855. No gore, no recent cases involving living
+private individuals.
+
+Every YouTube id was checked against `https://www.youtube.com/oembed` before it was
+inserted, and the stored title and channel are the ones YouTube itself returned. A
+hallucinated eleven-character id looks exactly like a real one, and a dead link is a
+dead end she has no way to diagnose. `drafts/round2/verify_youtube.py` does the
+check and drops anything that is not live.
+
+A video she opens **stays on the list for three hours** — long enough to go back to
+it — and then drops out of the way. The click is never deleted: `crime_video_views`
+keeps it, and a **👁️ Amiket már megnéztem** button brings the older ones back.
+
+Every screen outside the main menu carries a red **✖ Kilépés / ✖ Exit** button at
+the top *and* at the bottom, the same size as the quiz buttons, so the way out is
+never further away than the top or the bottom of the page.
 
 ## Accessibility
 
@@ -87,7 +164,8 @@ Unlimited results are stored in the same per-category result tables with `is_unl
 - A−/A+ text scaling
 - Light and dark themes
 - Optional English or Hungarian speech
-- Keyboard shortcuts 1–4 for answer choices, narrowing to 1–2 in Tricky True or False
+- Keyboard shortcuts 1–4 for answer choices, narrowing to 1–3 in Két igazság és egy hazugság and 1–2 in the two-choice categories
+- A red, clearly-worded exit button at the top and the bottom of every screen that is not the main menu
 - High contrast, strong focus rings, and answer states that do not rely on color alone
 - No required typing or recurring sign-in
 - A large results-only share button that prepares a plain-text score message
@@ -123,6 +201,19 @@ Questions are stored in `quiz_questions`; the original local JavaScript question
 - `supabase/migrations/20260917062007_add_magyar_zene_questions.sql`
 - `supabase/migrations/20260917062008_add_regen_volt_questions.sql`
 - `supabase/migrations/20260917062009_correct_psychology_questions.sql`
+- `supabase/migrations/20260918070000_two_new_hungarian_categories.sql`
+- `supabase/migrations/20260918070100_crime_stories_and_videos.sql`
+- `supabase/migrations/20260918070200_my_best_scores.sql`
+- `supabase/migrations/20260918070300_unlimited_first_metrics.sql`
+- `supabase/migrations/20260918071000_crime_content.sql`
+- `supabase/migrations/20260918072001_add_history_round_two.sql`
+- `supabase/migrations/20260918072004_add_hungarian_round_two.sql`
+- `supabase/migrations/20260918072005_add_tricky_true_false_round_two.sql`
+- `supabase/migrations/20260918073000_crime_stories_replacements.sql`
+- `supabase/migrations/20260918074002_add_geography_round_two.sql`
+- `supabase/migrations/20260918074003_add_time_traveler_round_two.sql`
+- `supabase/migrations/20260918074006_add_tobb_vagy_kevesebb_questions.sql`
+- `supabase/migrations/20260918074007_add_ket_igazsag_questions.sql`
 - `supabase/seed.sql`
 
 Each question also keeps global `times_shown`, `times_answered`, and `times_correct` counters. Round selection uses gentle weighted randomness: questions with fewer views have a better chance of appearing, but no active question is excluded. A view is recorded only when the question actually reaches the screen, which keeps long Unlimited runs from counting unseen questions. `quiz_question_stats_dashboard` provides an admin-friendly view of those counters and per-question accuracy.
@@ -141,6 +232,8 @@ Completed scores are deliberately separated by quiz:
 - `magyar_konyha_quiz_results`
 - `magyar_zene_quiz_results`
 - `regen_volt_quiz_results`
+- `tobb_vagy_kevesebb_quiz_results`
+- `ket_igazsag_quiz_results`
 - `time_traveler_quiz_results`
 - `tricky_true_false_quiz_results`
 - `psychology_quiz_results`
@@ -154,7 +247,23 @@ The browser signs in with Supabase Anonymous Auth. Row Level Security allows pla
 
 ## Metrics dashboard
 
-Visit `/metrics` for the dark, owner-facing activity dashboard. It shows standard quiz performance, combined daily activity, streaks, timing, second-chance points, separate Unlimited Mode records, a dated top-three leaderboard, a 30-day standard/Unlimited activity graph, and the latest sessions. It always starts with a fresh database request, refreshes every 15 seconds while visible, and refreshes immediately when you return to a stale tab.
+Visit `/metrics` for the dark, owner-facing activity dashboard. It leads with the
+run — longest run, run-length distribution, accuracy, questions answered — plus
+streaks, daily activity, timing, second-chance points, a dated leaderboard of the
+ten longest runs, and the latest sessions. It always starts with a fresh database
+request, refreshes every 15 seconds while visible, and refreshes immediately when
+you return to a stale tab.
+
+Ten-question rounds stopped being produced in September 2026, so the numbers that
+described them — average percentage, best percentage, perfect scores, score
+distribution — stopped moving. They are not deleted: the 61 standard rounds that
+happened are kept whole under an **archive** section, clearly marked as historical.
+Streaks, daily activity and correct-answer totals have always counted every attempt
+regardless of mode and were not touched by the change.
+
+`categories[].best_share_of_pool` is the interesting new number: how much of a
+category's whole question bank her longest run got through. It is what says
+"she has finished this quiz" — and therefore which bank needs more questions.
 
 The dashboard code and database request are isolated to the `/metrics` directory. Visiting the main quiz page does not download the dashboard assets or request its statistics.
 
@@ -164,8 +273,8 @@ The dashboard is intentionally public. Its single aggregate request reads from `
 
 - `index.html` — accessible page structure
 - `style.css` — large-print light/dark design
-- `app.js` — quiz flow, second chances, voice, and game-show lifelines
-- `supabase-client.js` — anonymous identity, question loading, and score recording
+- `app.js` — quiz flow, second chances, voice, game-show lifelines, best scores, and the crime corner
+- `supabase-client.js` — anonymous identity, question loading, score recording, stats, and crime content
 - `config.js` — project URL and browser-safe Supabase publishable key
 - `metrics/` — dark metrics dashboard at `/metrics`
 - `supabase/` — CLI config, database migration, and question seed
