@@ -11,7 +11,10 @@
   <link rel="preload" href="../fonts/atkinson-regular.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="../fonts/atkinson-bold.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="preconnect" href="https://bqamvmngcofaddrzzapi.supabase.co" crossorigin>
-  <link rel="stylesheet" href="metrics.css">
+  <!-- Same cache trap as the quiz page: a fresh index.html can pair with a
+       ten-minute-old metrics.js, and the ids they agree on would not match.
+       Bump ?v= on every deploy that changes metrics.js or metrics.css. -->
+  <link rel="stylesheet" href="metrics.css?v=20260918b">
 </head>
 <body>
   <header class="topbar">
@@ -34,7 +37,7 @@
       <div>
         <p class="eyebrow">Performance dashboard</p>
         <h1>Mom’s quiz activity</h1>
-        <p class="page-subtitle">Scores, momentum, and category performance in one place.</p>
+        <p class="page-subtitle">How far each run gets, how often she plays, and which quizzes she has finished.</p>
       </div>
       <p id="data-status" class="data-status">Connecting to the quiz database…</p>
     </section>
@@ -55,35 +58,35 @@
 
     <div id="dashboard" hidden>
       <section class="hero-metrics metric-grid">
-        <article class="metric-card metric-card-primary">
-          <div class="metric-topline"><span>Total quizzes</span><span class="metric-icon">Σ</span></div>
-          <strong id="total-quizzes" class="metric-value">—</strong>
-          <p id="total-quizzes-note" class="metric-note">All completed quizzes</p>
+        <article class="metric-card metric-card-unlimited">
+          <div class="metric-topline"><span>Longest run</span><span class="metric-icon accent-unlimited">∞</span></div>
+          <strong id="best-run" class="metric-value">—</strong>
+          <p id="best-run-note" class="metric-note">Questions answered before a question beat her twice</p>
         </article>
         <article class="metric-card">
-          <div class="metric-topline"><span>Today</span><span class="metric-icon accent-green">↗</span></div>
-          <strong id="quizzes-today" class="metric-value">—</strong>
-          <p id="today-note" class="metric-note">Quizzes completed today</p>
+          <div class="metric-topline"><span>Runs played</span><span class="metric-icon">Σ</span></div>
+          <strong id="total-runs" class="metric-value">—</strong>
+          <p id="total-runs-note" class="metric-note">Unlimited runs completed</p>
         </article>
         <article class="metric-card">
-          <div class="metric-topline"><span>Overall average</span><span class="metric-icon accent-purple">%</span></div>
-          <strong id="average-score" class="metric-value">—</strong>
-          <div class="meter"><span id="average-meter"></span></div>
-          <p id="average-note" class="metric-note">Across every answer</p>
+          <div class="metric-topline"><span>Run accuracy</span><span class="metric-icon accent-purple">%</span></div>
+          <strong id="run-accuracy" class="metric-value">—</strong>
+          <div class="meter"><span id="accuracy-meter"></span></div>
+          <p id="run-accuracy-note" class="metric-note">Across every Unlimited answer</p>
         </article>
         <article class="metric-card">
-          <div class="metric-topline"><span>Perfect scores</span><span class="metric-icon accent-gold">★</span></div>
-          <strong id="perfect-scores" class="metric-value">—</strong>
-          <p id="perfect-note" class="metric-note">10 out of 10</p>
+          <div class="metric-topline"><span>Current streak</span><span class="metric-icon accent-green">◷</span></div>
+          <strong id="current-streak" class="metric-value">—</strong>
+          <p id="streak-note" class="metric-note">Days in a row with a quiz</p>
         </article>
       </section>
 
       <section class="compact-metrics">
+        <article><span>Today</span><strong id="quizzes-today">—</strong><small id="today-note">—</small></article>
+        <article><span>Questions answered</span><strong id="questions-answered">—</strong><small id="questions-answered-note">—</small></article>
         <article><span>Correct answers</span><strong id="correct-answers">—</strong><small id="correct-answers-note">—</small></article>
         <article><span>Second-chance points</span><strong id="second-chances">—</strong><small id="second-chances-note">—</small></article>
-        <article class="unlimited-compact"><span>Unlimited runs</span><strong id="unlimited-runs">—</strong><small>Tracked separately</small></article>
-        <article><span>Average standard time</span><strong id="average-time">—</strong><small>From start to finish</small></article>
-        <article><span>Current streak</span><strong id="current-streak">—</strong><small id="streak-note">—</small></article>
+        <article><span>Time played</span><strong id="time-played">—</strong><small id="time-played-note">—</small></article>
       </section>
 
       <section class="dashboard-grid dashboard-grid-wide">
@@ -100,17 +103,17 @@
           <div class="activity-legend"><span><i></i>Standard</span><span><i></i>Unlimited</span></div>
         </article>
 
-        <article class="panel score-panel">
+        <article class="panel runlength-panel">
           <div class="panel-heading">
             <div>
-              <p class="section-kicker">Standard score finder</p>
-              <h2>How often did each standard score happen?</h2>
+              <p class="section-kicker unlimited-kicker">Run lengths</p>
+              <h2>How far do runs get?</h2>
             </div>
+            <div class="panel-stat"><strong id="run-length-total">—</strong><span>runs</span></div>
           </div>
-          <label class="score-select-label" for="score-select">Choose a score</label>
-          <select id="score-select" class="score-select"></select>
-          <div id="score-spotlight" class="score-spotlight"></div>
-          <div id="score-categories" class="score-categories"></div>
+          <p class="panel-caption">Questions answered before the run ended. There is no percentage any more — a run stops when a question beats her, not at a fixed length.</p>
+          <div id="run-length-bars" class="distribution-bars"></div>
+          <p id="run-length-caption" class="panel-footnote">—</p>
         </article>
       </section>
 
@@ -120,17 +123,19 @@
             <p class="section-kicker unlimited-kicker">Unlimited Mode</p>
             <h2>Sudden-death records</h2>
           </div>
-          <p id="unlimited-summary" class="section-summary">A missed answer ends each run — the second miss in most quizzes, the first in Tricky True or False.</p>
+          <p id="unlimited-summary" class="section-summary">—</p>
         </div>
+        <p class="panel-caption">A run ends when one question beats her twice — or on the first miss in Tricky True or False, which gives no second chances.</p>
         <div class="unlimited-metric-grid">
-          <article><span>Runs completed</span><strong id="unlimited-run-count">—</strong></article>
-          <article><span>Highest score</span><strong id="unlimited-best-score">—</strong></article>
-          <article><span>Average score</span><strong id="unlimited-average-score">—</strong></article>
-          <article><span>Second-chance points</span><strong id="unlimited-second-chances">—</strong></article>
+          <article><span>Runs past 100</span><strong id="unlimited-over-100">—</strong></article>
+          <article><span>Average length</span><strong id="unlimited-average-score">—</strong></article>
+          <article><span>Median length</span><strong id="unlimited-median-score">—</strong></article>
+          <article><span>Average run time</span><strong id="unlimited-average-time">—</strong></article>
+          <article><span>Second chances</span><strong id="unlimited-second-chances">—</strong></article>
         </div>
         <div class="unlimited-records-heading">
-          <h3>Top three runs</h3>
-          <span>Highest score first</span>
+          <h3>Top ten runs</h3>
+          <span>Longest first</span>
         </div>
         <div id="unlimited-top-runs" class="unlimited-top-runs"></div>
       </section>
@@ -139,7 +144,7 @@
         <div class="section-heading">
           <div>
             <p class="section-kicker">Category breakdown</p>
-            <h2>Standard results, with Unlimited records</h2>
+            <h2>Best run in each quiz</h2>
           </div>
           <p id="favorite-category" class="section-summary">—</p>
         </div>
@@ -147,14 +152,16 @@
       </section>
 
       <section class="dashboard-grid">
-        <article class="panel distribution-panel">
+        <article class="panel coverage-panel">
           <div class="panel-heading">
             <div>
-              <p class="section-kicker">Standard results</p>
-              <h2>Standard score distribution</h2>
+              <p class="section-kicker">Question bank</p>
+              <h2>How much of each quiz has she got through?</h2>
             </div>
+            <div class="panel-stat"><strong id="coverage-bank">—</strong><span>questions</span></div>
           </div>
-          <div id="distribution-bars" class="distribution-bars"></div>
+          <p class="panel-caption">Her longest run measured against that quiz’s whole question bank. Near 100% means she has effectively finished it and it needs more questions.</p>
+          <div id="coverage-bars" class="coverage-bars"></div>
         </article>
 
         <article class="panel insights-panel">
@@ -185,6 +192,38 @@
           </table>
         </div>
       </section>
+
+      <section class="section-block archive-section">
+        <div class="section-heading">
+          <div>
+            <p class="section-kicker archive-kicker">Archive · ten-question rounds</p>
+            <h2>The old scores</h2>
+          </div>
+          <p id="archive-summary" class="section-summary">—</p>
+        </div>
+        <p class="archive-note">Every quiz except <b>Are You Smarter Than a Fifth Grader?</b> used to stop after ten questions. That format is gone — the rest now run as one open-ended Unlimited run — so these numbers are a closed record rather than a running total.</p>
+        <div class="archive-metric-grid">
+          <article><span>Rounds played</span><strong id="archive-rounds">—</strong><small>Ten questions each</small></article>
+          <article><span>Average score</span><strong id="archive-average">—</strong><div class="meter"><span id="archive-meter"></span></div></article>
+          <article><span>Best score</span><strong id="archive-best">—</strong><small>Out of ten</small></article>
+          <article><span>Perfect rounds</span><strong id="archive-perfect">—</strong><small id="archive-perfect-note">—</small></article>
+        </div>
+        <p id="archive-detail" class="archive-detail">—</p>
+
+        <div class="archive-grid">
+          <div class="archive-block">
+            <h3>Score distribution</h3>
+            <div id="distribution-bars" class="distribution-bars"></div>
+          </div>
+          <div class="archive-block">
+            <h3>Score finder</h3>
+            <label class="score-select-label" for="score-select">Choose a score</label>
+            <select id="score-select" class="score-select"></select>
+            <div id="score-spotlight" class="score-spotlight"></div>
+            <div id="score-categories" class="score-categories"></div>
+          </div>
+        </div>
+      </section>
     </div>
   </main>
 
@@ -193,7 +232,7 @@
     <span id="footer-timezone">Times shown in your local timezone</span>
   </footer>
 
-  <script src="../config.js"></script>
-  <script src="metrics.js"></script>
+  <script src="../config.js?v=20260918b"></script>
+  <script src="metrics.js?v=20260918b"></script>
 </body>
 </html>

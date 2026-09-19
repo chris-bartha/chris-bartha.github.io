@@ -17,6 +17,8 @@
     magyar_konyha: "♨",
     magyar_zene: "♪",
     regen_volt: "▤",
+    tobb_vagy_kevesebb: "⇅",
+    ket_igazsag: "🎭",
     time_traveler: "⌛",
     tricky_true_false: "⚖",
     psychology: "💭",
@@ -36,6 +38,8 @@
     magyar_konyha: "#f87171",
     magyar_zene: "#f0abfc",
     regen_volt: "#94a3b8",
+    tobb_vagy_kevesebb: "#818cf8",
+    ket_igazsag: "#34d399",
     time_traveler: "#a3e635",
     tricky_true_false: "#fb7185",
     psychology: "#e879f9",
@@ -135,36 +139,70 @@
     return item.score + "-" + item.total_questions;
   }
 
+  /* The page is lang="en", so Hungarian quiz names need marking or a screen reader
+     reads "Népmesék és közmondások" with English phonetics. language_code carries it. */
+  var languageById = {};
+
+  function languageAttr(id) {
+    return languageById[id] && languageById[id] !== "en" ? ' lang="' + escapeHtml(languageById[id]) + '"' : "";
+  }
+
+  /* A run beats her instead of running out, so "plays" means runs plus any old ten-question rounds. */
+  function categoryPlays(category) {
+    return (Number(category.unlimited_quizzes) || 0) + (Number(category.quizzes) || 0);
+  }
+
   function renderHero(metrics) {
     var overview = metrics.overview;
-    setText("total-quizzes", number(overview.total_sessions));
-    setText("total-quizzes-note", "All completed quizzes · Standard + Unlimited");
-    setText("quizzes-today", number(overview.quizzes_today));
-    setText("today-note", overview.quizzes_today
-      ? number(overview.standard_today) + " standard · " + number(overview.unlimited_today) + " Unlimited"
-      : "No quizzes yet today");
-    setText("average-score", percent(overview.average_percentage));
-    document.getElementById("average-meter").style.width = Math.min(100, Number(overview.average_percentage) || 0) + "%";
-    setText("average-note", number(overview.standard_total_correct) + " correct from " +
-      number(overview.standard_total_questions) + " standard questions");
-    setText("perfect-scores", number(overview.perfect_scores));
-    setText("perfect-note", overview.total_quizzes
-      ? percent(overview.perfect_scores * 100 / overview.total_quizzes) + " of standard quizzes"
-      : "No standard scores yet");
+    var unlimited = metrics.unlimited || {};
+    var runs = Number(unlimited.runs) || 0;
+    var bestRun = (unlimited.top_runs || [])[0];
 
-    setText("correct-answers", number(overview.total_correct));
-    setText("correct-answers-note", number(overview.total_questions) + " questions · all modes");
-    setText("second-chances", number(overview.second_chance_correct));
-    setText("second-chances-note", percent(overview.total_correct ? overview.second_chance_correct * 100 / overview.total_correct : 0) + " of all correct answers");
-    setText("unlimited-runs", number(overview.unlimited_quizzes));
-    setText("average-time", duration(overview.average_duration_seconds));
+    setText("best-run", runs ? number(unlimited.best_score) : "—");
+    /* top_runs can be empty or nameless while runs is not, so the note never claims there are none. */
+    setText("best-run-note", runs
+      ? (bestRun && bestRun.category_name
+          ? bestRun.category_name + " · " + dateTime(bestRun.completed_at, metrics.timezone)
+          : "Questions answered before a question beat her twice")
+      : "No Unlimited runs yet");
+    setText("total-runs", number(runs));
+    setText("total-runs-note", runs
+      ? number(unlimited.runs_last_30_days) + " in the last 30 days · " +
+        percent(overview.unlimited_share) + " of all " + number(overview.total_sessions) + " rounds ever played"
+      : "No Unlimited runs yet");
+    setText("run-accuracy", runs ? percent(unlimited.accuracy) : "—");
+    document.getElementById("accuracy-meter").style.width = Math.min(100, Number(unlimited.accuracy) || 0) + "%";
+    setText("run-accuracy-note", number(unlimited.total_correct) + " correct from " +
+      number(unlimited.questions_answered) + " questions in Unlimited");
     setText("current-streak", plural(overview.current_streak, "day"));
     setText("streak-note", "Longest: " + plural(overview.longest_streak, "day"));
+
+    setText("quizzes-today", number(overview.quizzes_today));
+    setText("today-note", overview.quizzes_today
+      ? number(overview.unlimited_today) + " Unlimited · " + number(overview.standard_today) + " standard"
+      : "No quizzes yet today");
+    setText("questions-answered", number(overview.total_questions));
+    setText("questions-answered-note", number(overview.question_bank) + " questions in the bank");
+    setText("correct-answers", number(overview.total_correct));
+    setText("correct-answers-note", percent(overview.accuracy) + " correct · all modes");
+    setText("second-chances", number(overview.second_chance_correct));
+    setText("second-chances-note", percent(overview.total_correct ? overview.second_chance_correct * 100 / overview.total_correct : 0) + " of all correct answers");
+    setText("time-played", duration(overview.total_seconds));
+    setText("time-played-note", runs ? "Average run " + duration(unlimited.average_duration_seconds) : "Since the first quiz");
     setText("month-total", number(overview.quizzes_last_30_days));
   }
 
+  /* Every attempt counts here, in both modes — this is the one chart that has never changed meaning. */
   function renderActivity(metrics) {
     var activity = metrics.daily_activity || [];
+    var chart = document.getElementById("activity-chart");
+    if (!activity.length) {
+      chart.removeAttribute("role");
+      chart.removeAttribute("aria-label");
+      chart.innerHTML = '<p class="empty-state">No activity recorded in the last 30 days.</p>';
+      setText("chart-start", "30 days ago");
+      return;
+    }
     var max = Math.max.apply(null, activity.map(function (day) { return day.quizzes; }).concat([1]));
     document.getElementById("activity-chart").innerHTML = activity.map(function (day) {
       var height = day.quizzes ? Math.max(8, day.quizzes / max * 100) : 2;
@@ -173,23 +211,65 @@
       var unlimitedShare = day.quizzes ? day.unlimited_quizzes / day.quizzes * 100 : 0;
       var tip = dateOnly(day.date) + ": " + plural(day.quizzes, "session") +
         " · " + number(day.standard_quizzes) + " standard · " +
-        number(day.unlimited_quizzes) + " Unlimited";
+        number(day.unlimited_quizzes) + " Unlimited" +
+        (day.best_unlimited_score ? " · best run " + number(day.best_unlimited_score) : "");
       return '<span class="' + className + '" style="height:' + height + '%" data-tip="' + escapeHtml(tip) + '">' +
         '<i class="activity-standard" style="height:' + standardShare + '%"></i>' +
         '<i class="activity-unlimited" style="height:' + unlimitedShare + '%"></i></span>';
     }).join("");
-    setText("chart-start", activity.length ? dateOnly(activity[0].date) : "30 days ago");
+    /* The per-day numbers live in a hover tooltip, so the chart itself needs a spoken summary.
+       max is floored at 1 to keep the bar heights finite, so the busiest day is counted again here. */
+    var totalSessions = activity.reduce(function (sum, day) { return sum + (Number(day.quizzes) || 0); }, 0);
+    var busiest = activity.reduce(function (top, day) { return Math.max(top, Number(day.quizzes) || 0); }, 0);
+    var playedDays = activity.filter(function (day) { return day.quizzes; }).length;
+    chart.setAttribute("role", "img");
+    chart.setAttribute("aria-label", "Daily quiz activity from " + dateOnly(activity[0].date) +
+      " to " + dateOnly(activity[activity.length - 1].date) + ": " +
+      (totalSessions
+        ? plural(totalSessions, "session") + " across " + plural(playedDays, "day") +
+          ", busiest day " + plural(busiest, "session") + "."
+        : "no quizzes played."));
+    setText("chart-start", dateOnly(activity[0].date));
+  }
+
+  /* How far a run gets is the only score there is now, so the buckets replace the old 0–10 spread. */
+  function renderRunLengths(metrics) {
+    var unlimited = metrics.unlimited || {};
+    var buckets = unlimited.run_lengths || [];
+    var counted = buckets.filter(function (bucket) { return Number(bucket.runs) > 0; });
+    setText("run-length-total", number(unlimited.runs));
+
+    if (!counted.length) {
+      document.getElementById("run-length-bars").innerHTML =
+        '<p class="empty-state">Run lengths appear after the first Unlimited run.</p>';
+      setText("run-length-caption", "No runs recorded yet.");
+      return;
+    }
+
+    var max = Math.max.apply(null, counted.map(function (bucket) { return Number(bucket.runs) || 0; }));
+    document.getElementById("run-length-bars").innerHTML = buckets.map(function (bucket) {
+      var runs = Number(bucket.runs) || 0;
+      var width = runs ? Math.max(2, runs / max * 100) : 0;
+      return '<div class="runlength-row"><span class="runlength-label">' + escapeHtml(bucket.bucket) + '</span>' +
+        '<div class="distribution-track"><div class="runlength-fill" style="width:' + width + '%"></div></div>' +
+        '<span class="distribution-count">' + number(runs) + ' · ' + percent(bucket.share_percentage) + '</span></div>';
+    }).join("");
+    setText("run-length-caption", "Median run " + plural(unlimited.median_score, "question") +
+      " · average " + number(unlimited.average_score) +
+      " · longest " + number(unlimited.best_score) + ".");
   }
 
   function renderUnlimited(metrics) {
     var unlimited = metrics.unlimited || { runs: 0, best_score: 0, average_score: 0, second_chance_correct: 0, top_runs: [] };
     var runs = Number(unlimited.runs) || 0;
-    setText("unlimited-run-count", number(runs));
-    setText("unlimited-best-score", runs ? number(unlimited.best_score) : "—");
+    setText("unlimited-over-100", runs ? number(unlimited.runs_over_100) : "—");
     setText("unlimited-average-score", runs ? number(unlimited.average_score) : "—");
+    setText("unlimited-median-score", runs ? number(unlimited.median_score) : "—");
+    setText("unlimited-average-time", runs ? duration(unlimited.average_duration_seconds) : "—");
     setText("unlimited-second-chances", number(unlimited.second_chance_correct));
     setText("unlimited-summary", runs
-      ? plural(runs, "run") + " · " + number(unlimited.total_correct) + " correct answers"
+      ? plural(runs, "run") + " · " + number(unlimited.total_correct) + " correct answers · " +
+        duration(unlimited.total_seconds) + " of playing"
       : "No Unlimited runs yet — the first record is waiting.");
 
     var topRuns = unlimited.top_runs || [];
@@ -203,114 +283,121 @@
       return '<article class="unlimited-record">' +
         '<span class="unlimited-rank">#' + (index + 1) + '</span>' +
         '<strong class="unlimited-score">' + number(run.score) + '</strong>' +
-        '<div class="unlimited-record-copy"><b>' + escapeHtml(run.category_name) + '</b>' +
+        '<div class="unlimited-record-copy"><b' + languageAttr(run.category_id) + '>' +
+        escapeHtml(run.category_name) + '</b>' +
         '<span>' + escapeHtml(fullDateTime(run.completed_at, metrics.timezone)) + '</span></div>' +
-        '<div class="unlimited-record-detail"><span>' + number(run.second_try_correct) + ' second-chance</span>' +
+        '<div class="unlimited-record-detail"><span>' + number(run.first_try_correct) + ' first try</span>' +
+        '<span>' + number(run.second_try_correct) + ' second-chance</span>' +
         '<span>' + duration(run.duration_seconds) + '</span></div></article>';
     }).join("");
   }
 
-  function renderScoreChoice(key) {
-    if (!currentMetrics || !currentMetrics.score_distribution.length) {
-      document.getElementById("score-spotlight").innerHTML = '<p class="empty-state">No scores yet.</p>';
-      document.getElementById("score-categories").innerHTML = "";
+  /* Her longest run against the whole bank: 100% means that quiz has nothing left to show her. */
+  function renderCoverage(metrics) {
+    var covered = metrics.categories.filter(function (category) {
+      return Number(category.pool_size) > 0 && Number(category.unlimited_quizzes) > 0;
+    }).sort(function (a, b) {
+      return b.best_share_of_pool - a.best_share_of_pool || b.unlimited_best_score - a.unlimited_best_score;
+    });
+    setText("coverage-bank", number(metrics.overview.question_bank));
+
+    if (!covered.length) {
+      document.getElementById("coverage-bars").innerHTML =
+        '<p class="empty-state">Coverage appears after the first Unlimited run.</p>';
       return;
     }
 
-    var item = currentMetrics.score_distribution.filter(function (candidate) {
-      return scoreKey(candidate) === key;
-    })[0] || currentMetrics.score_distribution[0];
-    document.getElementById("score-spotlight").innerHTML =
-      "<strong>" + number(item.quizzes) + "</strong>" +
-      "<b>" + escapeHtml(item.score + "/" + item.total_questions) + " scores</b>" +
-      "<span>" + percent(item.share_percentage) + " of all completed quizzes · latest " +
-        escapeHtml(dateTime(item.latest_at, currentMetrics.timezone)) + "</span>";
-
-    document.getElementById("score-categories").innerHTML = item.categories.map(function (category) {
-      return '<span class="score-chip">' + escapeHtml(category.name) + ' <b>×' + number(category.quizzes) + '</b></span>';
+    document.getElementById("coverage-bars").innerHTML = covered.map(function (category) {
+      var accent = CATEGORY_COLORS[category.id] || "#53e0ce";
+      var share = Math.min(100, Number(category.best_share_of_pool) || 0);
+      return '<div class="coverage-row" style="--category-accent:' + accent + '">' +
+        '<span class="coverage-label"><i aria-hidden="true">' + categoryIcon(category.id) + '</i>' +
+          '<span' + languageAttr(category.id) + '>' + escapeHtml(category.name) + '</span></span>' +
+        '<div class="coverage-track"><div class="coverage-fill" style="width:' + Math.max(share ? 2 : 0, share) + '%"></div></div>' +
+        '<span class="coverage-count"><b>' + percent(category.best_share_of_pool) + '</b>' +
+          number(category.unlimited_best_score) + ' / ' + number(category.pool_size) + '</span></div>';
     }).join("");
-  }
-
-  function renderScorePicker(metrics) {
-    var distribution = metrics.score_distribution || [];
-    if (!distribution.length) {
-      scoreSelect.innerHTML = '<option>No scores yet</option>';
-      scoreSelect.disabled = true;
-      renderScoreChoice("");
-      return;
-    }
-
-    var previousSelection = scoreSelect.value;
-    scoreSelect.disabled = false;
-    scoreSelect.innerHTML = distribution.map(function (item) {
-      return '<option value="' + scoreKey(item) + '">' + escapeHtml(item.score + "/" + item.total_questions) +
-        " — " + plural(item.quizzes, "quiz", "quizzes") + "</option>";
-    }).join("");
-    if (distribution.some(function (item) { return scoreKey(item) === previousSelection; })) {
-      scoreSelect.value = previousSelection;
-    }
-    renderScoreChoice(scoreSelect.value);
   }
 
   function renderCategories(metrics) {
-    var played = metrics.categories.filter(function (category) { return category.quizzes > 0; });
-    var mostPlayed = played.slice().sort(function (a, b) { return b.quizzes - a.quizzes || b.average_percentage - a.average_percentage; })[0];
+    var played = metrics.categories.filter(function (category) { return categoryPlays(category) > 0; });
+    var mostPlayed = played.slice().sort(function (a, b) {
+      return categoryPlays(b) - categoryPlays(a) || b.unlimited_best_score - a.unlimited_best_score;
+    })[0];
     setText("favorite-category", mostPlayed
-      ? "Most played: " + mostPlayed.name + " with " + plural(mostPlayed.quizzes, "quiz", "quizzes")
+      ? "Most played: " + mostPlayed.name + " with " + plural(categoryPlays(mostPlayed), "play")
       : "No category results yet");
 
     document.getElementById("category-grid").innerHTML = metrics.categories.map(function (category) {
       var accent = CATEGORY_COLORS[category.id] || "#53e0ce";
+      var runs = Number(category.unlimited_quizzes) || 0;
+      var rounds = Number(category.quizzes) || 0;
+      var pool = Number(category.pool_size) || 0;
       var last = category.last_played_at ? "Last played " + dateTime(category.last_played_at, metrics.timezone) : "Not played yet";
-      return '<article class="category-card" style="--category-accent:' + accent + '">' +
-        '<div class="category-card-top"><h3 class="category-name">' + escapeHtml(category.name) +
-        '</h3><span class="category-emoji">' + categoryIcon(category.id) + '</span></div>' +
-        '<strong class="category-count">' + number(category.quizzes) + '</strong>' +
-        '<span class="category-count-label">' + (category.quizzes === 1 ? "quiz" : "quizzes") + '</span>' +
-        '<div class="category-progress"><span style="width:' + Math.min(100, Number(category.average_percentage) || 0) + '%"></span></div>' +
-        '<div class="category-stats"><span>Average<b>' + percent(category.average_percentage) + '</b></span>' +
-        '<span>Best<b>' + percent(category.best_percentage) + '</b></span>' +
-        '<span>Perfect<b>' + number(category.perfect_scores) + '</b></span></div>' +
-        '<p class="category-unlimited">' + (category.unlimited_quizzes
-          ? plural(category.unlimited_quizzes, "Unlimited run") + ' · best ' + number(category.unlimited_best_score)
-          : 'No Unlimited runs') + '</p>' +
-        '<p class="category-last">' + escapeHtml(last) + '</p></article>';
-    }).join("");
-  }
+      var headline = "—";
+      var headlineLabel = "not played yet";
+      var barWidth = 0;
+      var footnoteClass = "category-footnote is-waiting";
+      var footnote = pool ? plural(pool, "question") + " waiting" : "No questions yet";
+      var stats = '<span>Runs<b>0</b></span><span>Accuracy<b>—</b></span><span>Second chance<b>0</b></span>';
 
-  function renderDistribution(metrics) {
-    var distribution = metrics.score_distribution || [];
-    if (!distribution.length) {
-      document.getElementById("distribution-bars").innerHTML = '<p class="empty-state">Scores will appear here after the first quiz.</p>';
-      return;
-    }
-    var max = Math.max.apply(null, distribution.map(function (item) { return item.quizzes; }));
-    document.getElementById("distribution-bars").innerHTML = distribution.map(function (item) {
-      return '<div class="distribution-row"><span class="distribution-label">' +
-        escapeHtml(item.score + "/" + item.total_questions) + '</span><div class="distribution-track">' +
-        '<div class="distribution-fill" style="width:' + (item.quizzes / max * 100) + '%"></div></div>' +
-        '<span class="distribution-count">' + number(item.quizzes) + ' · ' + percent(item.share_percentage) + '</span></div>';
+      if (runs) {
+        headline = number(category.unlimited_best_score);
+        headlineLabel = "best run";
+        barWidth = Math.min(100, Number(category.best_share_of_pool) || 0);
+        footnoteClass = "category-footnote is-unlimited";
+        footnote = pool
+          ? percent(category.best_share_of_pool) + " of its " + number(pool) + " questions in one run"
+          : plural(category.unlimited_questions_answered, "question") + " answered";
+        stats = '<span>Runs<b>' + number(runs) + '</b></span>' +
+          '<span>Accuracy<b>' + percent(category.unlimited_accuracy) + '</b></span>' +
+          '<span>Second chance<b>' + number(category.unlimited_second_chance_correct) + '</b></span>';
+      } else if (rounds) {
+        headline = number(rounds);
+        headlineLabel = rounds === 1 ? "ten-question round" : "ten-question rounds";
+        barWidth = Math.min(100, Number(category.average_percentage) || 0);
+        footnoteClass = "category-footnote is-standard";
+        footnote = "Still played ten questions at a time";
+        stats = '<span>Average<b>' + percent(category.average_percentage) + '</b></span>' +
+          '<span>Best<b>' + percent(category.best_percentage) + '</b></span>' +
+          '<span>Perfect<b>' + number(category.perfect_scores) + '</b></span>';
+      }
+
+      return '<article class="category-card" style="--category-accent:' + accent + '">' +
+        '<div class="category-card-top"><h3 class="category-name"' + languageAttr(category.id) + '>' +
+        escapeHtml(category.name) +
+        '</h3><span class="category-emoji" aria-hidden="true">' + categoryIcon(category.id) + '</span></div>' +
+        '<strong class="category-count">' + headline + '</strong>' +
+        '<span class="category-count-label">' + headlineLabel + '</span>' +
+        '<div class="category-progress"><span style="width:' + barWidth + '%"></span></div>' +
+        '<div class="category-stats">' + stats + '</div>' +
+        '<p class="' + footnoteClass + '">' + escapeHtml(footnote) + '</p>' +
+        '<p class="category-last">' + escapeHtml(last) + '</p></article>';
     }).join("");
   }
 
   function renderInsights(metrics) {
     var overview = metrics.overview;
-    var played = metrics.categories.filter(function (category) { return category.quizzes > 0; });
-    var strongest = played.slice().sort(function (a, b) { return b.average_percentage - a.average_percentage || b.quizzes - a.quizzes; })[0];
-    var mostPlayed = played.slice().sort(function (a, b) { return b.quizzes - a.quizzes; })[0];
+    var unlimited = metrics.unlimited || {};
+    var played = metrics.categories.filter(function (category) { return Number(category.unlimited_quizzes) > 0; });
+    var deepest = played.slice().sort(function (a, b) { return b.best_share_of_pool - a.best_share_of_pool; })[0];
+    var sharpest = played.slice().sort(function (a, b) { return b.unlimited_accuracy - a.unlimited_accuracy || b.unlimited_quizzes - a.unlimited_quizzes; })[0];
+    var mostPlayed = metrics.categories.slice().sort(function (a, b) { return categoryPlays(b) - categoryPlays(a); })[0];
     var firstTryShare = overview.total_questions ? overview.first_try_correct * 100 / overview.total_questions : 0;
     var momentum = overview.quizzes_last_7_days === 0
       ? "No quizzes in the last 7 days"
       : plural(overview.quizzes_last_7_days, "quiz", "quizzes") + " in the last 7 days";
     var items = [
-      { icon: "♛", label: "Strongest category", value: strongest ? strongest.name + " · " + percent(strongest.average_percentage) : "Waiting for a result" },
-      { icon: "◫", label: "Most played", value: mostPlayed ? mostPlayed.name + " · " + plural(mostPlayed.quizzes, "quiz", "quizzes") : "Waiting for a result" },
+      { icon: "◎", label: "Furthest through a quiz", value: deepest ? deepest.name + " · " + percent(deepest.best_share_of_pool) + " of its questions" : "Waiting for a run" },
+      { icon: "♛", label: "Sharpest quiz", value: sharpest ? sharpest.name + " · " + percent(sharpest.unlimited_accuracy) : "Waiting for a run" },
+      { icon: "◫", label: "Most played", value: mostPlayed && categoryPlays(mostPlayed) ? mostPlayed.name + " · " + plural(categoryPlays(mostPlayed), "play") : "Waiting for a result" },
       { icon: "↗", label: "Recent momentum", value: momentum },
       { icon: "✓", label: "Right on the first try", value: percent(firstTryShare) + " of all questions" },
+      { icon: "⚑", label: "Runs past 100 questions", value: plural(unlimited.runs_over_100, "run") },
       { icon: "◷", label: "Active days", value: plural(overview.active_days, "day") + " since tracking began" }
     ];
     document.getElementById("insights").innerHTML = items.map(function (item) {
-      return '<div class="insight"><span class="insight-icon">' + item.icon + '</span><div><p>' +
+      return '<div class="insight"><span class="insight-icon" aria-hidden="true">' + item.icon + '</span><div><p>' +
         escapeHtml(item.label) + '</p><strong>' + escapeHtml(item.value) + '</strong></div></div>';
     }).join("");
   }
@@ -328,7 +415,8 @@
       return "<tr><td>" + escapeHtml(dateTime(result.completed_at, metrics.timezone)) + "</td>" +
         '<td><span class="mode-badge ' + (unlimited ? "is-unlimited" : "") + '">' +
           (unlimited ? "Unlimited" : "Standard") + "</span></td>" +
-        '<td><span class="table-category"><span>' + categoryIcon(result.category_id) + "</span>" + escapeHtml(result.category_name) + "</span></td>" +
+        '<td><span class="table-category"><span aria-hidden="true">' + categoryIcon(result.category_id) + "</span>" +
+          '<span' + languageAttr(result.category_id) + ">" + escapeHtml(result.category_name) + "</span></span></td>" +
         '<td><span class="score-badge ' + (unlimited ? "is-unlimited" : "") + '">' + escapeHtml(score) + "</span></td>" +
         "<td>" + number(result.first_try_correct) + "</td>" +
         "<td>" + number(result.second_try_correct) + "</td>" +
@@ -336,16 +424,102 @@
     }).join("");
   }
 
+  /* The ten-question era. Only Fifth Grader still adds to these, so they sit at the bottom. */
+  function renderArchive(metrics) {
+    var archive = metrics.archive || {};
+    var overview = metrics.overview;
+    var rounds = Number(archive.rounds) || 0;
+    setText("archive-rounds", number(rounds));
+    setText("archive-average", rounds ? percent(archive.average_percentage) : "—");
+    document.getElementById("archive-meter").style.width = Math.min(100, Number(archive.average_percentage) || 0) + "%";
+    setText("archive-best", rounds ? percent(archive.best_percentage) : "—");
+    setText("archive-perfect", number(archive.perfect_scores));
+    setText("archive-perfect-note", rounds
+      ? percent(archive.perfect_scores * 100 / rounds) + " of those rounds"
+      : "No ten-question rounds yet");
+    setText("archive-summary", rounds
+      ? percent(overview.unlimited_share) + " of every round she has ever played was Unlimited."
+      : "No ten-question rounds recorded.");
+    setText("archive-detail", rounds
+      ? number(archive.total_correct) + " correct from " + number(archive.total_questions) +
+        " questions · average round " + duration(archive.average_duration_seconds) +
+        " · last one " + fullDateTime(archive.last_played_at, metrics.timezone)
+      : "—");
+  }
+
+  function renderScoreChoice(key) {
+    if (!currentMetrics || !currentMetrics.score_distribution.length) {
+      document.getElementById("score-spotlight").innerHTML = '<p class="empty-state">No scores yet.</p>';
+      document.getElementById("score-categories").innerHTML = "";
+      return;
+    }
+
+    var item = currentMetrics.score_distribution.filter(function (candidate) {
+      return scoreKey(candidate) === key;
+    })[0] || currentMetrics.score_distribution[0];
+    document.getElementById("score-spotlight").innerHTML =
+      "<strong>" + number(item.quizzes) + "</strong>" +
+      "<b>" + escapeHtml(item.score + "/" + item.total_questions) + " scores</b>" +
+      "<span>" + percent(item.share_percentage) + " of all ten-question rounds · latest " +
+        escapeHtml(dateTime(item.latest_at, currentMetrics.timezone)) + "</span>";
+
+    document.getElementById("score-categories").innerHTML = item.categories.map(function (category) {
+      return '<span class="score-chip"' + languageAttr(category.id) + '>' + escapeHtml(category.name) +
+        ' <b>×' + number(category.quizzes) + '</b></span>';
+    }).join("");
+  }
+
+  function renderScorePicker(metrics) {
+    var distribution = metrics.score_distribution || [];
+    if (!distribution.length) {
+      scoreSelect.innerHTML = '<option>No scores yet</option>';
+      scoreSelect.disabled = true;
+      renderScoreChoice("");
+      return;
+    }
+
+    var previousSelection = scoreSelect.value;
+    scoreSelect.disabled = false;
+    scoreSelect.innerHTML = distribution.map(function (item) {
+      return '<option value="' + scoreKey(item) + '">' + escapeHtml(item.score + "/" + item.total_questions) +
+        " — " + plural(item.quizzes, "round") + "</option>";
+    }).join("");
+    if (distribution.some(function (item) { return scoreKey(item) === previousSelection; })) {
+      scoreSelect.value = previousSelection;
+    }
+    renderScoreChoice(scoreSelect.value);
+  }
+
+  function renderDistribution(metrics) {
+    var distribution = metrics.score_distribution || [];
+    if (!distribution.length) {
+      document.getElementById("distribution-bars").innerHTML = '<p class="empty-state">No ten-question rounds were recorded.</p>';
+      return;
+    }
+    var max = Math.max.apply(null, distribution.map(function (item) { return Number(item.quizzes) || 0; }).concat([1]));
+    document.getElementById("distribution-bars").innerHTML = distribution.map(function (item) {
+      return '<div class="distribution-row"><span class="distribution-label">' +
+        escapeHtml(item.score + "/" + item.total_questions) + '</span><div class="distribution-track">' +
+        '<div class="distribution-fill" style="width:' + ((Number(item.quizzes) || 0) / max * 100) + '%"></div></div>' +
+        '<span class="distribution-count">' + number(item.quizzes) + ' · ' + percent(item.share_percentage) + '</span></div>';
+    }).join("");
+  }
+
   function render(metrics) {
     currentMetrics = metrics;
+    languageById = {};
+    metrics.categories.forEach(function (category) { languageById[category.id] = category.language_code; });
     renderHero(metrics);
     renderActivity(metrics);
+    renderRunLengths(metrics);
     renderUnlimited(metrics);
-    renderScorePicker(metrics);
+    renderCoverage(metrics);
     renderCategories(metrics);
-    renderDistribution(metrics);
     renderInsights(metrics);
     renderRecent(metrics);
+    renderArchive(metrics);
+    renderScorePicker(metrics);
+    renderDistribution(metrics);
 
     loadingState.hidden = true;
     errorState.hidden = true;

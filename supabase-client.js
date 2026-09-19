@@ -14,6 +14,8 @@
     magyar_konyha: "magyar_konyha_quiz_results",
     magyar_zene: "magyar_zene_quiz_results",
     regen_volt: "regen_volt_quiz_results",
+    tobb_vagy_kevesebb: "tobb_vagy_kevesebb_quiz_results",
+    ket_igazsag: "ket_igazsag_quiz_results",
     time_traveler: "time_traveler_quiz_results",
     tricky_true_false: "tricky_true_false_quiz_results",
     psychology: "psychology_quiz_results",
@@ -111,6 +113,9 @@
       q: row.prompt,
       a: row.correct_answer,
       w: row.wrong_answers,
+      /* Null on most questions. Two categories make the payoff the real figure
+         behind the answer, so the quiz shows it once the answer is revealed. */
+      why: row.explanation || null,
       grade: row.grade_level,
       subject: row.subject,
       timesShown: Number(row.times_shown) || 0,
@@ -126,7 +131,7 @@
 
     var result = await client
       .from("quiz_questions")
-      .select("id, category_id, prompt, correct_answer, wrong_answers, grade_level, subject, times_shown, times_answered, times_correct, last_answered_at")
+      .select("id, category_id, prompt, correct_answer, wrong_answers, explanation, grade_level, subject, times_shown, times_answered, times_correct, last_answered_at")
       .eq("category_id", category)
       .eq("is_active", true)
       .order("display_order", { ascending: true });
@@ -174,10 +179,116 @@
     }
   }
 
+  function viewerTimezone() {
+    try {
+      return Intl.DateTimeFormat().resolvedOptions().timeZone || "UTC";
+    } catch (error) {
+      return "UTC";
+    }
+  }
+
+  /* Her own numbers for the "Your best scores" screen. The result tables are
+     insert-only from the browser and quiz_metrics has no read policy at all, so
+     this goes through a function that can only see the caller's own rows. */
+  async function loadMyStats() {
+    if (!client || !userId) throw new Error("The quiz database is not ready.");
+
+    var result = await client.rpc("get_my_quiz_stats", {
+      viewer_timezone: viewerTimezone()
+    });
+
+    if (result.error) {
+      throw new Error(readableError(result.error, "Could not add up your scores."));
+    }
+    return result.data;
+  }
+
+  var crimeCache = { stories: null, videos: null };
+
+  async function loadCrimeStories() {
+    if (crimeCache.stories) return crimeCache.stories.slice();
+    if (!client || !userId) throw new Error("The quiz database is not ready.");
+
+    var result = await client
+      .from("crime_stories")
+      .select("id, title, teaser, body, year_label, place, closing, minutes")
+      .eq("is_active", true)
+      .order("display_order", { ascending: true });
+
+    if (result.error) {
+      throw new Error(readableError(result.error, "Nem sikerült betölteni a történeteket."));
+    }
+
+    crimeCache.stories = result.data;
+    return crimeCache.stories.slice();
+  }
+
+  /* Both halves in one call: the videos themselves, and which of them this
+     player has already opened. The three-hour grace period is worked out in the
+     app from first_clicked_at, so nothing here is ever deleted. */
+  async function loadCrimeVideos() {
+    if (crimeCache.videos) return crimeCache.videos;
+    if (!client || !userId) throw new Error("The quiz database is not ready.");
+
+    var videoResult = await client
+      .from("crime_videos")
+      .select("id, youtube_id, title, channel, summary, case_name")
+      .eq("is_active", true)
+      .order("display_order", { ascending: true });
+
+    if (videoResult.error) {
+      throw new Error(readableError(videoResult.error, "Nem sikerült betölteni a videókat."));
+    }
+
+    var viewResult = await client
+      .from("crime_video_views")
+      .select("video_id, first_clicked_at, last_clicked_at, click_count");
+
+    if (viewResult.error) {
+      throw new Error(readableError(viewResult.error, "Nem sikerült betölteni a megnézett videókat."));
+    }
+
+    var views = {};
+    viewResult.data.forEach(function (row) {
+      views[row.video_id] = row;
+    });
+
+    crimeCache.videos = { videos: videoResult.data, views: views };
+    return crimeCache.videos;
+  }
+
+  async function recordCrimeVideoClick(videoId) {
+    if (!client || !userId) return null;
+
+    var result = await client.rpc("record_crime_video_click", {
+      target_video_id: videoId
+    });
+
+    if (result.error) {
+      throw new Error(readableError(result.error, "Nem sikerült elmenteni, hogy megnyitottad."));
+    }
+
+    /* Keep the cached copy in step so the list can re-render without a refetch. */
+    if (crimeCache.videos) {
+      var existing = crimeCache.videos.views[videoId];
+      crimeCache.videos.views[videoId] = {
+        video_id: videoId,
+        first_clicked_at: existing ? existing.first_clicked_at : result.data,
+        last_clicked_at: new Date().toISOString(),
+        click_count: existing ? (existing.click_count + 1) : 1
+      };
+    }
+    return result.data;
+  }
+
   window.QuizBackend = {
     initialize: initialize,
     loadQuestions: loadQuestions,
     recordQuestionViews: recordQuestionViews,
-    recordResult: recordResult
+    recordResult: recordResult,
+    loadMyStats: loadMyStats,
+    loadCrimeStories: loadCrimeStories,
+    loadCrimeVideos: loadCrimeVideos,
+    recordCrimeVideoClick: recordCrimeVideoClick
   };
 })();

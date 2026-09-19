@@ -20,6 +20,8 @@
     magyar_konyha: "Magyar konyha",
     magyar_zene: "Magyar zene 1970–1989",
     regen_volt: "Ahogy régen volt",
+    tobb_vagy_kevesebb: "Több vagy kevesebb?",
+    ket_igazsag: "Két igazság és egy hazugság",
     time_traveler: "Time Traveler",
     tricky_true_false: "Tricky True or False",
     psychology: "Psychology",
@@ -36,18 +38,40 @@
     magyar_nepmesek: true,
     magyar_konyha: true,
     magyar_zene: true,
-    regen_volt: true
+    regen_volt: true,
+    tobb_vagy_kevesebb: true,
+    ket_igazsag: true
   };
 
-  /* True/false rounds offer two choices, so a second chance would simply hand
-     over the answer. These categories get one attempt per question instead. */
-  var TRUE_FALSE_CATEGORIES = { tricky_true_false: true };
+  /* Two-choice rounds get one attempt per question: a second chance would leave
+     only the correct answer standing, which is not a second chance at all. */
+  var SINGLE_ATTEMPT_CATEGORIES = {
+    tricky_true_false: true,
+    tobb_vagy_kevesebb: true
+  };
+
+  /* How many buttons a question shows, which is also how far the number-key
+     shortcut goes. Four unless a category says otherwise. */
+  var OPTION_COUNTS = {
+    tricky_true_false: 2,
+    tobb_vagy_kevesebb: 2,
+    ket_igazsag: 3
+  };
+
+  /* The one quiz that is still a fixed ten-question round. Everywhere else the
+     run continues until a question beats her twice. */
+  var LADDER_CATEGORY = "fifth_grader";
 
   var screens = {
     loading: document.getElementById("screen-loading"),
     error: document.getElementById("screen-error"),
     home: document.getElementById("screen-home"),
     hungarian: document.getElementById("screen-hungarian"),
+    stats: document.getElementById("screen-stats"),
+    crime: document.getElementById("screen-crime"),
+    crimeStories: document.getElementById("screen-crime-stories"),
+    crimeStory: document.getElementById("screen-crime-story"),
+    crimeVideos: document.getElementById("screen-crime-videos"),
     quiz: document.getElementById("screen-quiz"),
     results: document.getElementById("screen-results")
   };
@@ -58,6 +82,7 @@
   var questionCardEl = questionEl.parentElement;
   var optionsEl = document.getElementById("options");
   var feedbackEl = document.getElementById("feedback");
+  var explanationEl = document.getElementById("explanation");
   var nextBtn = document.getElementById("next-btn");
   var quitBtn = document.getElementById("quit-btn");
   var quitConfirmEl = document.getElementById("quit-confirm");
@@ -76,13 +101,9 @@
   var copyBtn = document.getElementById("copy-btn");
   var saveIndicator = document.getElementById("save-indicator");
   var helpStatusEl = document.getElementById("help-status");
-  var menuBtns = document.querySelectorAll(".menu-btn");
-  var unlimitedToggle = document.getElementById("unlimited-toggle");
-  var unlimitedToggleState = document.getElementById("unlimited-toggle-state");
-  var unlimitedToggleDescription = document.getElementById("unlimited-toggle-description");
-  var fifthMenuBtn = document.querySelector('.menu-btn[data-category="fifth_grader"]');
-  var fifthMenuDescription = document.getElementById("fifth-menu-description");
-  var trickyMenuDescription = document.getElementById("tricky-menu-description");
+  var menuBtns = document.querySelectorAll(".menu-btn[data-category]");
+  var statsBtn = document.getElementById("stats-btn");
+  var crimeBtn = document.getElementById("crime-btn");
 
   var state = {
     category: "hungarian",
@@ -143,9 +164,10 @@
       read: "🔊 Read this question",
       quit: "Stop and go back to the menu",
       kbHint: "Tip: you can press <strong>1, 2, 3 or 4</strong> on your keyboard to answer.",
+      kbHintThree: "Tip: you can press <strong>1, 2 or 3</strong> on your keyboard to answer.",
       kbHintTwo: "Tip: you can press <strong>1 or 2</strong> on your keyboard to answer.",
-      singleAttemptMeta: "⚠️ One try only — no second chances",
-      unlimitedSingleAttemptMeta: "😈 Unlimited Mode — one try each, a single miss ends the run",
+      why: function (text) { return "💡 In fact: " + text; },
+      unlimitedSingleAttemptMeta: "⚠️ One try each — a single miss ends the run",
       shareNoSecondChances: "One try per question — no second chances.",
       again: "🔁 Play again",
       home: "🏠 Back to the menu",
@@ -154,16 +176,16 @@
       shareReady: "Your score is ready to send.",
       score: function (score, total) { return "You got " + score + " out of " + total + " right."; },
       unlimitedProgress: function (i, score) {
-        return "Unlimited Mode  •  Question " + i + "  •  Score: " + score;
+        return "Question " + i + "  •  Score: " + score;
       },
-      unlimitedMeta: "😈 Unlimited Mode — a second miss ends the run",
+      unlimitedMeta: "😈 The run ends when one question beats you twice",
       unlimitedReveal: function (answer) {
-        return "😈 That ends this Unlimited run. The answer is: " + answer;
+        return "😈 That ends this run. The answer is: " + answer;
       },
       unlimitedRevealSpoken: function (answer) {
-        return "That ends this Unlimited run. The answer is " + answer;
+        return "That ends this run. The answer is " + answer;
       },
-      unlimitedSeeResult: "See my Unlimited score ➜",
+      unlimitedSeeResult: "See my score ➜",
       unlimitedScore: function (score, attempted, cleared) {
         if (cleared) return "Amazing — you cleared every question with " + score + " correct!";
         return "You answered " + score + " correctly before the run ended. " +
@@ -200,9 +222,10 @@
       read: "🔊 Olvasd fel a kérdést",
       quit: "Megállok, vissza a menübe",
       kbHint: "Tipp: a billentyűzeten az <strong>1, 2, 3 vagy 4</strong> gombbal is válaszolhatsz.",
+      kbHintThree: "Tipp: a billentyűzeten az <strong>1, 2 vagy 3</strong> gombbal is válaszolhatsz.",
       kbHintTwo: "Tipp: a billentyűzeten az <strong>1 vagy 2</strong> gombbal is válaszolhatsz.",
-      singleAttemptMeta: "⚠️ Csak egy próbálkozás — nincs második esély",
-      unlimitedSingleAttemptMeta: "😈 Korlátlan mód — egy próbálkozás, egyetlen hiba véget vet a játéknak",
+      why: function (text) { return "💡 Valójában: " + text; },
+      unlimitedSingleAttemptMeta: "⚠️ Egy próbálkozás — egyetlen hiba véget vet a játéknak",
       shareNoSecondChances: "Egy próbálkozás kérdésenként — nincs második esély.",
       again: "🔁 Játszom még egyszer",
       home: "🏠 Vissza a menübe",
@@ -211,16 +234,16 @@
       shareReady: "Az üzenet elkészült.",
       score: function (score, total) { return total + " kérdésből " + score + " helyes válaszod volt."; },
       unlimitedProgress: function (i, score) {
-        return "Korlátlan mód  •  " + i + ". kérdés  •  Pontszám: " + score;
+        return i + ". kérdés  •  Pontszám: " + score;
       },
-      unlimitedMeta: "😈 Korlátlan mód — a második hibás válasz véget vet a játéknak",
+      unlimitedMeta: "😈 A játék addig tart, amíg egy kérdés kétszer be nem csap",
       unlimitedReveal: function (answer) {
-        return "😈 A korlátlan játéknak vége. A helyes válasz: " + answer;
+        return "😈 A játéknak vége. A helyes válasz: " + answer;
       },
       unlimitedRevealSpoken: function (answer) {
-        return "A korlátlan játéknak vége. A helyes válasz " + answer;
+        return "A játéknak vége. A helyes válasz " + answer;
       },
-      unlimitedSeeResult: "Mutasd a korlátlan eredményt ➜",
+      unlimitedSeeResult: "Mutasd az eredményt ➜",
       unlimitedScore: function (score, attempted, cleared) {
         if (cleared) return "Csodálatos — minden kérdésre helyesen válaszoltál! Pontszám: " + score + ".";
         return score + " helyes válaszod volt, mielőtt a játék véget ért. Megválaszolt kérdések: " + attempted + ".";
@@ -233,8 +256,19 @@
     return HUNGARIAN_CATEGORIES[state.category] ? "hu" : "en";
   }
 
-  function isTrueFalse() {
-    return Boolean(TRUE_FALSE_CATEGORIES[state.category]);
+  function isSingleAttempt() {
+    return Boolean(SINGLE_ATTEMPT_CATEGORIES[state.category]);
+  }
+
+  function optionCount() {
+    return OPTION_COUNTS[state.category] || 4;
+  }
+
+  /* Every quiz but the Fifth Grader ladder now runs as a single open-ended run.
+     She played Unlimited Mode almost exclusively when it was a choice, and a
+     toggle she never turned off was one more thing between her and a round. */
+  function isUnlimitedCategory(category) {
+    return category !== LADDER_CATEGORY;
   }
 
   function L() {
@@ -312,6 +346,25 @@
     });
   }
 
+  /* Landing on the top of a new screen matters more here than usual: at 200%
+     text the exit button may be the only thing above the fold, and she needs to
+     know it is there before anything else. */
+  function focusFirst(screen) {
+    var target = screen.querySelector("h1[tabindex], .exit-btn, .big-btn, h1");
+    if (!target) return;
+    try {
+      target.focus({ preventScroll: true });
+    } catch (error) {
+      target.focus();
+    }
+  }
+
+  function openScreen(name, scroll) {
+    show(name);
+    if (scroll !== false) window.scrollTo(0, 0);
+    focusFirst(screens[name]);
+  }
+
   function save(key, value) {
     try { localStorage.setItem(key, String(value)); } catch (error) { /* Optional preference. */ }
   }
@@ -320,42 +373,13 @@
     try { return localStorage.getItem(key); } catch (error) { return null; }
   }
 
-  /* A category that is unavailable in the current mode stays focusable and
-     readable: `disabled` would hide its explanation from the keyboard and from
-     assistive technology, and the click is already refused in startRound. */
   function setMenuBusy(busy) {
     for (var i = 0; i < menuBtns.length; i++) {
-      var unavailable = state.unlimited && menuBtns[i].dataset.category === "fifth_grader";
       menuBtns[i].disabled = busy;
-      menuBtns[i].setAttribute("aria-disabled", String(unavailable));
-      menuBtns[i].classList.toggle("mode-unavailable", unavailable);
     }
+    statsBtn.disabled = busy;
+    crimeBtn.disabled = busy;
   }
-
-  function applyUnlimitedMode(enabled) {
-    state.unlimited = Boolean(enabled);
-    state.unlimitedEnded = false;
-    unlimitedToggle.setAttribute("aria-pressed", String(state.unlimited));
-    unlimitedToggleState.textContent = state.unlimited ? "On" : "Off";
-    unlimitedToggleDescription.textContent = state.unlimited
-      ? "Keep going until one question is missed twice. Second chances stay on."
-      : "Tap to keep playing until one question is missed twice.";
-    fifthMenuDescription.textContent = state.unlimited
-      ? "Unavailable in Unlimited Mode — turn it off to play"
-      : "Climb from Grade 1 to Grade 5 with Peek, Copy, and Save";
-    /* This quiz never had second chances, so in Unlimited Mode the very first
-       miss ends the run rather than the second. */
-    trickyMenuDescription.textContent = state.unlimited
-      ? "One try each — a single miss ends the run"
-      : "The obvious answer is often wrong — one try each, no second chances";
-    fifthMenuBtn.setAttribute("aria-disabled", String(state.unlimited));
-    setMenuBusy(state.loading);
-    save("quiz-unlimited", state.unlimited ? "on" : "off");
-  }
-
-  unlimitedToggle.addEventListener("click", function () {
-    applyUnlimitedMode(!state.unlimited);
-  });
 
   function showError(error) {
     errorMessageEl.textContent = error && error.message
@@ -486,7 +510,8 @@
     var strings = L();
     readBtn.textContent = strings.read;
     quitBtn.textContent = strings.quit;
-    document.getElementById("kb-hint").innerHTML = isTrueFalse() ? strings.kbHintTwo : strings.kbHint;
+    var hints = { 2: strings.kbHintTwo, 3: strings.kbHintThree };
+    document.getElementById("kb-hint").innerHTML = hints[optionCount()] || strings.kbHint;
     document.getElementById("again-btn").textContent = strings.again;
     document.getElementById("home-btn").textContent = strings.home;
     shareBtn.textContent = strings.share;
@@ -531,23 +556,22 @@
       console.error("startRound called without a real category:", category);
       return;
     }
-    if (state.unlimited && category === "fifth_grader") return;
     state.loading = true;
     setMenuBusy(true);
     show("loading");
 
     try {
       var pool = await window.QuizBackend.loadQuestions(category);
-      if ((!state.unlimited && pool.length < ROUND_LENGTH) || pool.length < 1) {
+      var unlimited = isUnlimitedCategory(category);
+      if ((!unlimited && pool.length < ROUND_LENGTH) || pool.length < 1) {
         throw new Error("There are not enough questions in this quiz yet.");
       }
 
       state.category = category;
-      state.round = state.unlimited
+      state.unlimited = unlimited;
+      state.round = unlimited
         ? weightedSample(pool, pool.length)
-        : category === "fifth_grader"
-        ? buildFifthGradeRound(pool)
-        : weightedSample(pool, ROUND_LENGTH);
+        : buildFifthGradeRound(pool);
       state.index = 0;
       state.score = 0;
       state.firstTryCorrect = 0;
@@ -629,6 +653,8 @@
     questionEl.textContent = question.q;
     feedbackEl.textContent = "";
     feedbackEl.className = "feedback";
+    explanationEl.hidden = true;
+    explanationEl.textContent = "";
     nextBtn.hidden = true;
 
     if (state.category === "fifth_grader") {
@@ -639,16 +665,11 @@
       helpStatusEl.textContent = state.lifelines.save
         ? "Your automatic Save has already been used."
         : "Your classmate is ready to help.";
-    } else if (state.unlimited || isTrueFalse()) {
-      questionMetaEl.hidden = false;
-      questionMetaEl.textContent = state.unlimited
-        ? (isTrueFalse() ? L().unlimitedSingleAttemptMeta : L().unlimitedMeta)
-        : L().singleAttemptMeta;
-      state.classmateAnswer = null;
-      helpStatusEl.textContent = "";
     } else {
-      questionMetaEl.hidden = true;
-      questionMetaEl.textContent = "";
+      questionMetaEl.hidden = false;
+      questionMetaEl.textContent = isSingleAttempt()
+        ? L().unlimitedSingleAttemptMeta
+        : L().unlimitedMeta;
       state.classmateAnswer = null;
       helpStatusEl.textContent = "";
     }
@@ -734,6 +755,12 @@
       button.disabled = true;
     }
 
+    /* One place covers every ending: right, wrong, saved, copied. Most banks
+       carry no note at all, and then nothing appears. */
+    var why = question.why;
+    explanationEl.hidden = !why;
+    explanationEl.textContent = why ? L().why(why) : "";
+
     updateBar(state.index + 1);
     state.answered = true;
     logAnswer(correct, outcome);
@@ -765,7 +792,7 @@
     state.attempts++;
     /* A true/false round has only two choices, so the reveal comes straight
        away — a second chance would leave just the correct answer standing. */
-    if (state.attempts === 1 && !isTrueFalse()) {
+    if (state.attempts === 1 && !isSingleAttempt()) {
       chosenButton.disabled = true;
       chosenButton.classList.add("is-wrong");
       chosenButton.querySelector(".option-badge").textContent = "✗";
@@ -930,7 +957,7 @@
     var categoryName = CATEGORY_NAMES[state.category] || "Quiz Time";
     var secondChanceText;
 
-    if (isTrueFalse()) {
+    if (isSingleAttempt()) {
       secondChanceText = L().shareNoSecondChances;
     } else if (state.secondTryCorrect === 0) {
       secondChanceText = "No points came from second chances.";
@@ -941,8 +968,8 @@
     }
 
     if (state.unlimited) {
-      return "I scored " + state.score + " on the " + categoryName +
-        " quiz in Unlimited Mode! " + secondChanceText + " 😈";
+      return "I answered " + state.score + " right in one run of the " +
+        categoryName + " quiz! " + secondChanceText + " 😈";
     }
 
     return "I scored " + state.score + " out of " + state.answers.length +
@@ -980,7 +1007,7 @@
     var clearedUnlimited = state.unlimited && !state.unlimitedEnded && state.index === state.round.length - 1;
     if (state.unlimited) {
       emoji = clearedUnlimited ? "😈🏆" : "😈";
-      title = clearedUnlimited ? "Unlimited Mode conquered!" : "Unlimited run complete!";
+      title = clearedUnlimited ? "You cleared the whole quiz!" : "Run complete!";
     }
     else if (score === total) { emoji = "🌟🌟🌟"; title = strings.titles[0]; }
     else if (score >= total * 0.8) { emoji = "🎉"; title = strings.titles[1]; }
@@ -1035,16 +1062,402 @@
     screens.hungarian.querySelector(".menu-btn").focus();
   });
 
-  document.getElementById("hungarian-back-btn").addEventListener("click", function () {
-    show("home");
+  /* Two exits on every screen — one above the content and one below it — so the
+     way out is never further than the top or the bottom of the page. */
+  function onExit(ids, handler) {
+    ids.forEach(function (id) {
+      var button = document.getElementById(id);
+      if (button) button.addEventListener("click", handler);
+    });
+  }
+
+  function backToHome(focusButton) {
+    return function () {
+      show("home");
+      window.scrollTo(0, 0);
+      if (focusButton) focusButton.focus();
+      else focusFirst(screens.home);
+    };
+  }
+
+  onExit(["hungarian-back-btn", "hungarian-back-btn-bottom"], backToHome(hungarianGroupBtn));
+
+  /* ---------- Your best scores ---------- */
+
+  var statsStatusEl = document.getElementById("stats-status");
+  var statsHeadlineEl = document.getElementById("stats-headline");
+  var statsCategoriesEl = document.getElementById("stats-categories");
+  var statsRecentEl = document.getElementById("stats-recent");
+  var statsCategoriesTitle = document.getElementById("stats-categories-title");
+  var statsRecentTitle = document.getElementById("stats-recent-title");
+  var statsLoaded = false;
+
+  function plural(count, one, many) {
+    return count === 1 ? one : many;
+  }
+
+  function shortDate(value) {
+    if (!value) return "";
+    var when = new Date(value);
+    if (isNaN(when.getTime())) return "";
+    return when.toLocaleDateString(undefined, {
+      year: "numeric", month: "short", day: "numeric"
+    });
+  }
+
+  function statTile(value, label) {
+    var tile = document.createElement("div");
+    tile.className = "stat-tile";
+    var big = document.createElement("span");
+    big.className = "stat-value";
+    big.textContent = value;
+    var small = document.createElement("span");
+    small.className = "stat-label";
+    small.textContent = label;
+    tile.appendChild(big);
+    tile.appendChild(small);
+    return tile;
+  }
+
+  function statRow(title, detail, badge) {
+    var row = document.createElement("div");
+    row.className = "stat-row";
+    if (badge) {
+      var mark = document.createElement("span");
+      mark.className = "stat-badge";
+      mark.textContent = badge;
+      row.appendChild(mark);
+    }
+    var copy = document.createElement("span");
+    copy.className = "stat-copy";
+    var heading = document.createElement("span");
+    heading.className = "stat-row-title";
+    heading.textContent = title;
+    var sub = document.createElement("span");
+    sub.className = "stat-row-detail";
+    sub.textContent = detail;
+    copy.appendChild(heading);
+    copy.appendChild(sub);
+    row.appendChild(copy);
+    return row;
+  }
+
+  function renderStats(data) {
+    var overall = data.overall || {};
+    statsHeadlineEl.innerHTML = "";
+    statsCategoriesEl.innerHTML = "";
+    statsRecentEl.innerHTML = "";
+
+    if (!overall.runs) {
+      statsStatusEl.textContent = "You haven’t finished a round yet. Play one and your scores will appear here.";
+      statsHeadlineEl.hidden = true;
+      statsCategoriesTitle.hidden = true;
+      statsRecentTitle.hidden = true;
+      return;
+    }
+
+    var best = overall.best_run;
+    statsStatusEl.textContent = best
+      ? "Your longest run so far: " + best.score + " right in " + best.name + "."
+      : "Here is how you are doing.";
+
+    statsHeadlineEl.hidden = false;
+    statsHeadlineEl.appendChild(statTile(String(overall.best_score), "Best run, any quiz"));
+    statsHeadlineEl.appendChild(statTile(String(overall.runs), plural(overall.runs, "Round played", "Rounds played")));
+    statsHeadlineEl.appendChild(statTile(overall.accuracy + "%", "Answers correct"));
+    statsHeadlineEl.appendChild(statTile(String(overall.total_correct), "Right answers in total"));
+    statsHeadlineEl.appendChild(statTile(String(overall.current_streak),
+      plural(overall.current_streak, "Day in a row", "Days in a row")));
+    statsHeadlineEl.appendChild(statTile(String(overall.longest_streak), "Longest run of days"));
+
+    var categories = data.categories || [];
+    statsCategoriesTitle.hidden = categories.length === 0;
+    categories.forEach(function (category) {
+      var detail = category.runs + " " + plural(category.runs, "round", "rounds") +
+        "  •  " + category.accuracy + "% right";
+      if (category.best_at) detail += "  •  best on " + shortDate(category.best_at);
+      if (category.pool_size) {
+        detail += "  •  " + category.pool_size + " questions in the quiz";
+      }
+      var row = statRow(category.name, detail, String(category.best_score));
+      if (category.language_code === "hu") row.setAttribute("lang", "hu");
+      statsCategoriesEl.appendChild(row);
+    });
+
+    var recent = data.recent || [];
+    statsRecentTitle.hidden = recent.length === 0;
+    recent.forEach(function (run) {
+      var detail = shortDate(run.completed_at) + "  •  " + run.score + " right";
+      if (!run.is_unlimited) detail += " out of " + run.total_questions;
+      var row = statRow(run.name, detail, "");
+      if (HUNGARIAN_CATEGORIES[run.category_id]) row.setAttribute("lang", "hu");
+      statsRecentEl.appendChild(row);
+    });
+  }
+
+  async function openStats() {
+    openScreen("stats");
+    if (statsLoaded) return;
+    statsStatusEl.textContent = "Adding up your rounds…";
+    try {
+      var data = await window.QuizBackend.loadMyStats();
+      statsLoaded = true;
+      renderStats(data);
+    } catch (error) {
+      console.error("Could not load your scores:", error);
+      statsStatusEl.textContent = "Your scores could not be loaded. Please check the internet connection and try again.";
+    }
+  }
+
+  statsBtn.addEventListener("click", openStats);
+  onExit(["stats-back-btn", "stats-back-btn-bottom"], backToHome(statsBtn));
+
+  /* ---------- Bűnügyi történetek ---------- */
+
+  var storiesStatusEl = document.getElementById("stories-status");
+  var storiesListEl = document.getElementById("stories-list");
+  var storyTitleEl = document.getElementById("story-title");
+  var storyMetaEl = document.getElementById("story-meta");
+  var storyBodyEl = document.getElementById("story-body");
+  var storyClosingEl = document.getElementById("story-closing");
+  var storyReadBtn = document.getElementById("story-read-btn");
+  var videosStatusEl = document.getElementById("videos-status");
+  var videosListEl = document.getElementById("videos-list");
+  var videosWatchedToggle = document.getElementById("videos-watched-toggle");
+  var crimeState = {
+    stories: null,
+    videos: null,
+    views: {},
+    openStory: null,
+    showWatched: false,
+    lastStoryButton: null,
+    lastVideoButton: null
+  };
+
+  /* A video she has opened stays on the list for three hours, so she can go back
+     to it, and then drops out of the way. The click itself is never deleted. */
+  var WATCHED_GRACE_MS = 3 * 60 * 60 * 1000;
+
+  function isRetired(view) {
+    if (!view || !view.first_clicked_at) return false;
+    var first = Date.parse(view.first_clicked_at);
+    if (isNaN(first)) return false;
+    return (Date.now() - first) > WATCHED_GRACE_MS;
+  }
+
+  function speakHungarian(text) {
+    if (!speechOK || !text) return;
+    var voice = voiceFor("hu");
+    if (!voice) return;
+    window.speechSynthesis.cancel();
+    var utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.9;
+    utterance.lang = "hu-HU";
+    utterance.voice = voice;
+    window.speechSynthesis.speak(utterance);
+  }
+
+  function crimeButton(emoji, title, detail, onClick) {
+    var button = document.createElement("button");
+    button.type = "button";
+    button.className = "big-btn menu-btn";
+    var mark = document.createElement("span");
+    mark.className = "menu-emoji";
+    mark.setAttribute("aria-hidden", "true");
+    mark.textContent = emoji;
+    var copy = document.createElement("span");
+    var heading = document.createElement("span");
+    heading.className = "menu-title";
+    heading.textContent = title;
+    var sub = document.createElement("span");
+    sub.className = "menu-sub";
+    sub.textContent = detail;
+    copy.appendChild(heading);
+    copy.appendChild(sub);
+    button.appendChild(mark);
+    button.appendChild(copy);
+    button.addEventListener("click", onClick);
+    return button;
+  }
+
+  function renderStoryList() {
+    storiesListEl.innerHTML = "";
+    var stories = crimeState.stories || [];
+    if (!stories.length) {
+      storiesStatusEl.textContent = "Még nincs itt egyetlen történet sem. Nézz vissza később!";
+      return;
+    }
+    storiesStatusEl.textContent = stories.length === 1
+      ? "Egy történet vár rád."
+      : stories.length + " történet vár rád.";
+    stories.forEach(function (story) {
+      var detail = story.teaser;
+      var tail = [story.place, story.year_label].filter(Boolean).join(", ");
+      if (tail) detail += "  •  " + tail;
+      detail += "  •  " + story.minutes + " perc olvasás";
+      var button = crimeButton("📄", story.title, detail, function () {
+        crimeState.lastStoryButton = button;
+        openStory(story);
+      });
+      storiesListEl.appendChild(button);
+    });
+  }
+
+  function openStory(story) {
+    crimeState.openStory = story;
+    storyTitleEl.textContent = story.title;
+    var meta = [story.place, story.year_label].filter(Boolean).join(" • ");
+    storyMetaEl.textContent = meta ? meta + " • " + story.minutes + " perc" : story.minutes + " perc";
+    storyBodyEl.innerHTML = "";
+    String(story.body).split(/\n\s*\n/).forEach(function (chunk) {
+      var text = chunk.trim();
+      if (!text) return;
+      var paragraph = document.createElement("p");
+      paragraph.textContent = text;
+      storyBodyEl.appendChild(paragraph);
+    });
+    storyClosingEl.textContent = story.closing || "";
+    storyClosingEl.hidden = !story.closing;
+    openScreen("crimeStory");
+    if (state.voiceOn) speakHungarian(story.title + ". " + story.body);
+  }
+
+  storyReadBtn.addEventListener("click", function () {
+    var story = crimeState.openStory;
+    if (!story) return;
+    speakHungarian(story.title + ". " + story.body + " " + (story.closing || ""));
+  });
+
+  async function openStories() {
+    openScreen("crimeStories");
+    if (crimeState.stories) return;
+    storiesStatusEl.textContent = "Töltöm a történeteket…";
+    try {
+      crimeState.stories = await window.QuizBackend.loadCrimeStories();
+      renderStoryList();
+    } catch (error) {
+      console.error("Could not load the crime stories:", error);
+      storiesStatusEl.textContent = "Nem sikerült betölteni a történeteket. Ellenőrizd az internetkapcsolatot.";
+    }
+  }
+
+  function renderVideoList() {
+    videosListEl.innerHTML = "";
+    var videos = crimeState.videos || [];
+    var hidden = 0;
+    var shown = 0;
+
+    videos.forEach(function (video) {
+      var view = crimeState.views[video.id];
+      var retired = isRetired(view);
+      if (retired && !crimeState.showWatched) {
+        hidden++;
+        return;
+      }
+      if (crimeState.showWatched && !view) return;
+
+      var detail = video.summary || "";
+      if (video.channel) detail += (detail ? "  •  " : "") + video.channel;
+      if (view) {
+        detail += "  •  ✓ Megnézve " + shortDate(view.last_clicked_at);
+      }
+      var button = crimeButton(view ? "✅" : "▶️", video.title, detail, function () {
+        crimeState.lastVideoButton = button;
+        openVideo(video, button);
+      });
+      if (view) button.classList.add("is-watched");
+      videosListEl.appendChild(button);
+      shown++;
+    });
+
+    if (crimeState.showWatched) {
+      videosStatusEl.textContent = shown
+        ? shown + " videót néztél meg eddig."
+        : "Még egy videót sem néztél meg.";
+    } else if (!shown) {
+      videosStatusEl.textContent = "Mindet megnézted! Alul előhozhatod a régieket.";
+    } else {
+      videosStatusEl.textContent = shown + " videó vár rád" +
+        (hidden ? ", " + hidden + " pedig már lekerült a listáról." : ".");
+    }
+
+    videosWatchedToggle.hidden = false;
+    videosWatchedToggle.textContent = crimeState.showWatched
+      ? "⬅ Vissza a még meg nem nézett videókhoz"
+      : "👁️ Amiket már megnéztem";
+    videosWatchedToggle.setAttribute("aria-pressed", String(crimeState.showWatched));
+  }
+
+  function openVideo(video, button) {
+    /* Open the tab first: a browser only treats window.open as wanted when it
+       happens inside the click, so awaiting the write would get it blocked. */
+    window.open("https://www.youtube.com/watch?v=" + video.youtube_id, "_blank", "noopener");
+    button.classList.add("is-watched");
+    window.QuizBackend.recordCrimeVideoClick(video.id).then(function (firstClickedAt) {
+      crimeState.views[video.id] = {
+        video_id: video.id,
+        first_clicked_at: firstClickedAt || new Date().toISOString(),
+        last_clicked_at: new Date().toISOString(),
+        click_count: ((crimeState.views[video.id] || {}).click_count || 0) + 1
+      };
+      renderVideoList();
+    }).catch(function (error) {
+      console.error("Could not record the video click:", error);
+    });
+  }
+
+  videosWatchedToggle.addEventListener("click", function () {
+    crimeState.showWatched = !crimeState.showWatched;
+    renderVideoList();
     window.scrollTo(0, 0);
-    hungarianGroupBtn.focus();
+    videosWatchedToggle.focus();
+  });
+
+  async function openVideos() {
+    openScreen("crimeVideos");
+    if (crimeState.videos) {
+      /* Three hours may have passed while the page stayed open. */
+      renderVideoList();
+      return;
+    }
+    videosStatusEl.textContent = "Töltöm a videókat…";
+    try {
+      var payload = await window.QuizBackend.loadCrimeVideos();
+      crimeState.videos = payload.videos;
+      crimeState.views = payload.views;
+      renderVideoList();
+    } catch (error) {
+      console.error("Could not load the crime videos:", error);
+      videosStatusEl.textContent = "Nem sikerült betölteni a videókat. Ellenőrizd az internetkapcsolatot.";
+    }
+  }
+
+  function openCrimeHub() {
+    if (speechOK) window.speechSynthesis.cancel();
+    openScreen("crime");
+  }
+
+  crimeBtn.addEventListener("click", openCrimeHub);
+  document.getElementById("crime-stories-btn").addEventListener("click", openStories);
+  document.getElementById("crime-videos-btn").addEventListener("click", openVideos);
+  onExit(["crime-back-btn", "crime-back-btn-bottom"], backToHome(crimeBtn));
+  onExit(["stories-back-btn", "stories-back-btn-bottom"], function () {
+    if (speechOK) window.speechSynthesis.cancel();
+    openCrimeHub();
+  });
+  onExit(["videos-back-btn", "videos-back-btn-bottom"], openCrimeHub);
+  onExit(["story-back-btn", "story-back-btn-bottom"], function () {
+    if (speechOK) window.speechSynthesis.cancel();
+    show("crimeStories");
+    window.scrollTo(0, 0);
+    if (crimeState.lastStoryButton) crimeState.lastStoryButton.focus();
+    else focusFirst(screens.crimeStories);
   });
 
   document.addEventListener("keydown", function (event) {
     if (screens.quiz.hidden || state.answered) return;
     var number = parseInt(event.key, 10);
-    if (number >= 1 && number <= 4) {
+    if (number >= 1 && number <= optionCount()) {
       var buttons = optionsEl.querySelectorAll(".option-btn");
       if (buttons[number - 1]) buttons[number - 1].click();
     }
@@ -1055,11 +1468,7 @@
     try {
       await window.QuizBackend.initialize();
       show("home");
-      try {
-        unlimitedToggle.focus({ preventScroll: true });
-      } catch (error) {
-        unlimitedToggle.focus();
-      }
+      focusFirst(screens.home);
       window.scrollTo(0, 0);
     } catch (error) {
       showError(error);
@@ -1079,8 +1488,5 @@
   applyTheme(load("quiz-theme") === "light" ? "light" : "dark");
   state.voiceOn = load("quiz-voice") === "on";
   applyVoice();
-  /* Almost every round she plays is an Unlimited run, so remember the setting
-     instead of making her switch it on again every session. */
-  applyUnlimitedMode(load("quiz-unlimited") !== "off");
   initializeApp();
 })();

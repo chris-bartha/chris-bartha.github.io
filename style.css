@@ -55,8 +55,6 @@
   --bad-text: #9c1c15;
   --focus: #a33d00;           /* 7.0:1 on paper — the old orange was 3.0:1 */
   --muted: #554e43;
-  --unlimited: #5b21b6;
-  --on-unlimited: #ffffff;
 }
 
 html[data-theme="dark"] {
@@ -73,8 +71,6 @@ html[data-theme="dark"] {
   --bad-text: #ffb4ab;
   --focus: #ffb300;
   --muted: #c9c0b0;
-  --unlimited: #c4b5fd;
-  --on-unlimited: #24103f;
 }
 
 * { box-sizing: border-box; }
@@ -169,74 +165,55 @@ main {
   margin: 0.4rem 0 1.4rem;
 }
 
-.unlimited-toggle {
+/* ---------- The shelf above the quizzes ---------- */
+
+/* Two things on the home screen that are not quizzes. Squared-off corners and
+   the plum border keep them a visibly separate shelf, so the quiz list below
+   still reads as one block rather than nine items with two strangers on top. */
+.extras-menu {
+  margin-top: 0;
+  padding-bottom: 0.6rem;
+  border-bottom: 3px dashed var(--shadow);
+}
+
+.extra-btn {
+  border-color: var(--plum);
+  border-radius: 0.6rem;
+  box-shadow: 0.3rem 0.3rem 0 var(--shadow);
+}
+
+/* ---------- Exits ---------- */
+
+/* Red, solid, and the first thing on every screen that is not the main menu.
+   She should never have to work out how to get back. */
+.exit-bar {
   display: flex;
-  width: 100%;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 1rem;
-  color: var(--ink);
-  background: var(--card);
-  border: 4px solid var(--unlimited);
-  border-radius: 1.15rem;
-  padding: 1rem 1.1rem;
-  margin: 0 0 1.1rem;
-  font: inherit;
-  text-align: left;
-  box-shadow: 0.35rem 0.35rem 0 var(--shadow);
-  cursor: pointer;
-}
-
-.unlimited-toggle:hover { background: var(--paper); }
-
-.unlimited-toggle[aria-pressed="true"] {
-  color: var(--on-unlimited);
-  background: var(--unlimited);
-  box-shadow: 0.45rem 0.45rem 0 var(--shadow);
-}
-
-.unlimited-toggle[aria-pressed="true"]:hover { background: var(--unlimited); opacity: 0.94; }
-
-.unlimited-toggle-emoji {
-  flex: none;
-  font-size: 2.7rem;
-  line-height: 1;
-}
-
-.unlimited-toggle-copy { min-width: 0; flex: 1; }
-
-.unlimited-toggle-heading {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
   gap: 0.7rem;
-  font-size: 1.35rem;
-  font-weight: 700;
-  line-height: 1.2;
+  margin: 0 0 1.4rem;
 }
 
-.unlimited-toggle-state {
-  flex: none;
-  min-width: 3.5rem;
-  padding: 0.25rem 0.65rem;
-  color: var(--on-unlimited);
-  background: var(--unlimited);
-  border: 3px solid currentColor;
-  border-radius: 999px;
-  font-size: 0.85rem;
+.exit-bar .exit-btn { flex: 1 1 18rem; margin: 0; }
+
+.exit-btn,
+.exit-btn:hover {
+  color: var(--on-strong);
+  background: var(--wrong-bg);
+  border-color: var(--wrong-bg);
   text-align: center;
-  text-transform: uppercase;
 }
 
-.unlimited-toggle[aria-pressed="true"] .unlimited-toggle-state {
-  color: var(--unlimited);
-  background: var(--on-unlimited);
-}
+.exit-btn:hover { opacity: 0.92; }
 
-.unlimited-toggle-description {
-  display: block;
-  margin-top: 0.25rem;
-  font-size: 1rem;
-  line-height: 1.35;
+/* A second exit at the foot of every long screen, so the way out is never
+   further away than the top or the bottom of the page. */
+.screen > .exit-btn { margin-top: 2rem; }
+
+.section-title {
+  font-size: 1.3rem;
+  line-height: 1.25;
+  margin: 2.2rem 0 0.8rem;
 }
 
 .hint {
@@ -319,14 +296,6 @@ main {
 .group-btn {
   border-color: var(--plum);
   border-width: 4px;
-}
-
-/* Unavailable, not disabled: the button keeps focus and its explanation stays
-   readable. 0.48 opacity put the sub-label near 1.9:1, effectively invisible. */
-.menu-btn.mode-unavailable {
-  cursor: not-allowed;
-  opacity: 0.75;
-  box-shadow: none;
 }
 
 /* ---------- Quiz screen ---------- */
@@ -519,6 +488,18 @@ main {
 .feedback.good { color: var(--good-text); }
 .feedback.bad  { color: var(--bad-text); }
 
+/* Shown only where a bank carries a note: the real figure behind a "more or
+   less" question, or what was true instead of the lie. Quieter than the
+   feedback line above it, because it is reading rather than a verdict. */
+.explanation {
+  border-left: 0.4rem solid var(--plum);
+  padding-left: 0.9rem;
+  margin: 0.2rem 0 1.2rem;
+  font-size: 1.05rem;
+  line-height: 1.45;
+  color: var(--ink);
+}
+
 .next-btn {
   display: block;
   text-align: center;
@@ -602,6 +583,120 @@ main {
   margin: 0 0 1.3rem;
 }
 
+/* ---------- Your best scores ---------- */
+
+/* auto-fit rather than a fixed column count: at 200% text one tile per row is
+   the right answer, and the grid arrives there on its own. */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 0.9rem;
+  margin: 1.4rem 0 0.4rem;
+}
+
+.stat-tile {
+  border: 3px solid var(--ink);
+  border-radius: 1.1rem;
+  background: var(--card);
+  padding: 1rem 1.1rem;
+  box-shadow: 0.3rem 0.3rem 0 var(--shadow);
+}
+
+.stat-value {
+  display: block;
+  font-size: 2.3rem;
+  font-weight: 700;
+  line-height: 1.1;
+  overflow-wrap: anywhere;
+}
+
+.stat-label {
+  display: block;
+  margin-top: 0.3rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+  line-height: 1.3;
+}
+
+.stat-list { margin-top: 0.4rem; }
+
+.stat-row {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  border: 3px solid var(--ink);
+  border-radius: 1.1rem;
+  background: var(--card);
+  padding: 0.9rem 1.1rem;
+  margin: 0.7rem 0;
+}
+
+/* The number she cares about, big enough to find without reading the row. */
+.stat-badge {
+  flex: none;
+  min-width: 3.6rem;
+  padding: 0.35rem 0.6rem;
+  color: var(--on-plum);
+  background: var(--plum);
+  border-radius: 0.7rem;
+  font-size: 1.4rem;
+  font-weight: 700;
+  text-align: center;
+  line-height: 1.2;
+}
+
+.stat-badge:empty { display: none; }
+
+.stat-copy { min-width: 0; }
+
+.stat-row-title {
+  display: block;
+  font-size: 1.2rem;
+  font-weight: 700;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.stat-row-detail {
+  display: block;
+  margin-top: 0.2rem;
+  font-size: 0.95rem;
+  color: var(--muted);
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+/* ---------- Crime stories ---------- */
+
+/* A reading column, not a quiz layout: narrower measure, looser leading, and
+   paragraphs with real air between them. */
+.story-body {
+  max-width: 34rem;
+  margin: 1.4rem 0 0;
+  font-size: 1.1rem;
+  line-height: 1.7;
+}
+
+.story-body p { margin: 0 0 1.3rem; }
+
+.story-closing {
+  max-width: 34rem;
+  border-left: 0.4rem solid var(--plum);
+  padding-left: 1rem;
+  margin: 1.8rem 0 0;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  font-weight: 700;
+}
+
+.story-closing:empty { display: none; }
+
+/* Already opened. The tick in the label says so too — never colour alone. */
+.menu-btn.is-watched {
+  border-style: dashed;
+  opacity: 0.85;
+}
+
 /* ---------- Footer ---------- */
 
 .footer {
@@ -640,15 +735,11 @@ html[data-font-step="5"] .options .option-btn {
     align-items: flex-start;
     gap: 0.4rem;
   }
-  .unlimited-toggle,
   .menu-btn {
     flex-direction: column;
     align-items: stretch;
     gap: 0.65rem;
   }
-  .unlimited-toggle-emoji,
   .menu-emoji { align-self: center; }
-  .unlimited-toggle-heading { display: block; font-size: 1rem; }
-  .unlimited-toggle-heading > span:first-child { display: block; overflow-wrap: anywhere; }
-  .unlimited-toggle-state { display: block; width: max-content; margin-top: 0.45rem; }
+  .exit-bar { flex-direction: column; align-items: stretch; }
 }
