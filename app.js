@@ -1149,7 +1149,7 @@
     statsRecentEl.innerHTML = "";
 
     if (!overall.runs) {
-      statsStatusEl.textContent = "You haven’t finished a round yet. Play one and your scores will appear here.";
+      statsStatusEl.textContent = "No rounds yet. Play one and the scores will appear here.";
       statsHeadlineEl.hidden = true;
       statsCategoriesTitle.hidden = true;
       statsRecentTitle.hidden = true;
@@ -1200,12 +1200,12 @@
     if (statsLoaded) return;
     statsStatusEl.textContent = "Adding up your rounds…";
     try {
-      var data = await window.QuizBackend.loadMyStats();
+      var data = await window.QuizBackend.loadBestScores();
       statsLoaded = true;
       renderStats(data);
     } catch (error) {
-      console.error("Could not load your scores:", error);
-      statsStatusEl.textContent = "Your scores could not be loaded. Please check the internet connection and try again.";
+      console.error("Could not load the scores:", error);
+      statsStatusEl.textContent = "The scores could not be loaded. Please check the internet connection and try again.";
     }
   }
 

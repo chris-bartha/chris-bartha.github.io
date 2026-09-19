@@ -187,18 +187,19 @@
     }
   }
 
-  /* Her own numbers for the "Your best scores" screen. The result tables are
-     insert-only from the browser and quiz_metrics has no read policy at all, so
-     this goes through a function that can only see the caller's own rows. */
-  async function loadMyStats() {
-    if (!client || !userId) throw new Error("The quiz database is not ready.");
+  /* The numbers behind the "Your best scores" screen. Deliberately the same for
+     every viewer: identity is anonymous auth in localStorage, so filtering to the
+     caller would show an empty screen on any device but the one she plays on.
+     Everything it returns is an aggregate /metrics already publishes. */
+  async function loadBestScores() {
+    if (!client) throw new Error("The quiz database is not ready.");
 
-    var result = await client.rpc("get_my_quiz_stats", {
+    var result = await client.rpc("get_quiz_best_scores", {
       viewer_timezone: viewerTimezone()
     });
 
     if (result.error) {
-      throw new Error(readableError(result.error, "Could not add up your scores."));
+      throw new Error(readableError(result.error, "Could not add up the scores."));
     }
     return result.data;
   }
@@ -286,7 +287,7 @@
     loadQuestions: loadQuestions,
     recordQuestionViews: recordQuestionViews,
     recordResult: recordResult,
-    loadMyStats: loadMyStats,
+    loadBestScores: loadBestScores,
     loadCrimeStories: loadCrimeStories,
     loadCrimeVideos: loadCrimeVideos,
     recordCrimeVideoClick: recordCrimeVideoClick
